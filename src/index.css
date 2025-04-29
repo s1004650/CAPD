@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root {
+  --primary-color: #3B82F6;
+  --primary-light: #93C5FD;
+  --primary-dark: #1D4ED8;
+  --secondary-color: #6366F1;
+  --secondary-light: #A5B4FC;
+  --secondary-dark: #4338CA;
+  --warning-color: #F59E0B;
+  --danger-color: #EF4444;
+  --success-color: #10B981;
+}
+
+/* 自定義滾動條 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 表單控制項樣式增強 */
+input, select, textarea {
+  @apply transition duration-200 ease-in-out;
+}
+
+/* 按鈕過渡效果 */
+button {
+  @apply transition duration-200 ease-in-out;
+}
+
+/* 卡片淡入動畫 */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 自定義標籤樣式 */
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+/* 通知標記 */
+.notification-badge {
+  @apply absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-500 text-white;
+}
+
+/* 卡片縮放效果 */
+.hover-scale {
+  @apply transition-transform duration-200;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* CSS 修正：添加 Noto Sans TC 繁體中文字型 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
