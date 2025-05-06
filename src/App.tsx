@@ -6,7 +6,11 @@ import Login from './pages/Login';
 import PatientDashboard from './pages/PatientDashboard';
 import DialysisRecordPage from './pages/DialysisRecordPage';
 import VitalsRecordPage from './pages/VitalsRecordPage';
+import ExitSiteCare from './pages/ExitSiteCare';
 import AdminDashboard from './pages/AdminDashboard';
+import PatientsPage from './pages/PatientsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import AlertsPage from './pages/AlertsPage';
 import Messages from './pages/Messages';
 import Settings from './pages/Settings';
 import { UserRole } from './types';
@@ -70,6 +74,50 @@ function App() {
               } 
             />
             <Route 
+              path="/exit-site-care" 
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.PATIENT]}>
+                  <ExitSiteCare />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* 個案管理師路由 */}
+            <Route 
+              path="/admin-dashboard" 
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/patients" 
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
+                  <PatientsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/analytics" 
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/alerts" 
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
+                  <AlertsPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* 共用路由 */}
+            <Route 
               path="/messages" 
               element={
                 <ProtectedRoute>
@@ -82,16 +130,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Settings />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 個案管理師路由 */}
-            <Route 
-              path="/admin-dashboard" 
-              element={
-                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
-                  <AdminDashboard />
                 </ProtectedRoute>
               } 
             />

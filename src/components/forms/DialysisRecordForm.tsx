@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { PlusCircle, MinusCircle, Save, RefreshCw, Thermometer } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { PlusCircle, MinusCircle, Save, RefreshCw, Camera, X } from 'lucide-react';
 import { DialysisRecord } from '../../types';
 
 interface DialysisRecordFormProps {
@@ -17,6 +17,16 @@ const SYMPTOMS = [
   { id: 'dizziness', label: '頭暈' },
   { id: 'edema', label: '水腫' },
   { id: 'shortness_of_breath', label: '呼吸短促' },
+  { id: 'abdominal_pain', label: '腹痛' },
+  { id: 'cramps', label: '抽筋' },
+  { id: 'tinnitus', label: '耳鳴' },
+];
+
+const CONCENTRATIONS = [
+  { value: '1.5%', label: '1.5%' },
+  { value: '2.5%', label: '2.5%' },
+  { value: '4.25%', label: '4.25%' },
+  { value: '7.5%', label: '7.5% 愛多尼爾' },
 ];
 
 const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
@@ -26,17 +36,20 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
 }) => {
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toTimeString().slice(0, 5);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [date, setDate] = useState<string>(today);
   const [time, setTime] = useState<string>(now);
   const [inflowVolume, setInflowVolume] = useState<number>(2000);
   const [outflowVolume, setOutflowVolume] = useState<number>(2000);
+  const [concentration, setConcentration] = useState<string>('1.5%');
   const [appearance, setAppearance] = useState<'clear' | 'cloudy' | 'bloody' | 'other'>('clear');
   const [hasAbdominalPain, setHasAbdominalPain] = useState<boolean>(false);
   const [painLevel, setPainLevel] = useState<number>(0);
   const [symptoms, setSymptoms] = useState<string[]>([]);
-  const [temperature, setTemperature] = useState<number | undefined>(undefined);
+  const [weight, setWeight] = useState<number>(60);
   const [notes, setNotes] = useState<string>('');
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,12 +58,14 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
       time,
       inflowVolume,
       outflowVolume,
+      concentration,
       appearance,
       hasAbdominalPain,
       painLevel: hasAbdominalPain ? painLevel : undefined,
       symptoms,
-      temperature,
+      weight,
       notes,
+      photos,
     });
   };
 
@@ -59,11 +74,12 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
       setTime(now);
       setInflowVolume(lastRecord.inflowVolume);
       setOutflowVolume(lastRecord.outflowVolume);
+      setConcentration(lastRecord.concentration || '1.5%');
       setAppearance(lastRecord.appearance);
       setHasAbdominalPain(lastRecord.hasAbdominalPain);
       setPainLevel(lastRecord.painLevel || 0);
       setSymptoms(lastRecord.symptoms || []);
-      setTemperature(lastRecord.temperature);
+      setWeight(lastRecord.weight || 60);
       setNotes(lastRecord.notes || '');
     }
   };
@@ -74,6 +90,31 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
         ? prev.filter(id => id !== symptomId)
         : [...prev, symptomId]
     );
+  };
+
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotos(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const adjustVolume = (type: 'inflow' | 'outflow', increment: boolean) => {
+    const setValue = type === 'inflow' ? setInflowVolume : setOutflowVolume;
+    setValue(prev => {
+      const newValue = increment ? prev + 100 : prev - 100;
+      return Math.max(0, newValue);
+    });
   };
 
   return (
@@ -128,7 +169,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
           <div className="mt-1 flex rounded-md shadow-sm">
             <button
               type="button"
-              onClick={() => setInflowVolume(Math.max(0, inflowVolume - 100))}
+              onClick={() => adjustVolume('inflow', false)}
               className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500"
             >
               <MinusCircle size={16} />
@@ -145,7 +186,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
             />
             <button
               type="button"
-              onClick={() => setInflowVolume(inflowVolume + 100)}
+              onClick={() => adjustVolume('inflow', true)}
               className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500"
             >
               <PlusCircle size={16} />
@@ -160,7 +201,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
           <div className="mt-1 flex rounded-md shadow-sm">
             <button
               type="button"
-              onClick={() => setOutflowVolume(Math.max(0, outflowVolume - 100))}
+              onClick={() => adjustVolume('outflow', false)}
               className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500"
             >
               <MinusCircle size={16} />
@@ -177,7 +218,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
             />
             <button
               type="button"
-              onClick={() => setOutflowVolume(outflowVolume + 100)}
+              onClick={() => adjustVolume('outflow', true)}
               className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500"
             >
               <PlusCircle size={16} />
@@ -190,6 +231,42 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
               脫水量: {outflowVolume - inflowVolume} mL
             </span>
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="concentration" className="block text-sm font-medium text-gray-700">
+            透析液濃度
+          </label>
+          <select
+            id="concentration"
+            value={concentration}
+            onChange={(e) => setConcentration(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required
+          >
+            {CONCENTRATIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
+            體重 (kg)
+          </label>
+          <input
+            type="number"
+            id="weight"
+            value={weight}
+            onChange={(e) => setWeight(Number(e.target.value))}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            min="20"
+            max="200"
+            step="0.1"
+            required
+          />
         </div>
 
         <div>
@@ -268,31 +345,51 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
             ))}
           </div>
         </div>
+      </div>
 
-        <div>
-          <label htmlFor="temperature" className="block text-sm font-medium text-gray-700">
-            體溫 (°C)
-          </label>
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Thermometer size={16} className="text-gray-400" />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          透析液照片
+        </label>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {photos.map((photo, index) => (
+            <div key={index} className="relative">
+              <img
+                src={photo}
+                alt={`透析液照片 ${index + 1}`}
+                className="w-full h-40 object-cover rounded-lg"
+              />
+              <button
+                type="button"
+                onClick={() => removePhoto(index)}
+                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+              >
+                <X size={16} />
+              </button>
             </div>
-            <input
-              type="number"
-              id="temperature"
-              value={temperature || ''}
-              onChange={(e) => setTemperature(e.target.value ? Number(e.target.value) : undefined)}
-              step="0.1"
-              min="35"
-              max="42"
-              placeholder="36.5"
-              className="block w-full pl-10 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
-          {temperature && temperature >= 37.5 && (
-            <p className="mt-1 text-sm text-red-600">體溫偏高，請留意身體狀況</p>
+          ))}
+          {photos.length < 4 && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full h-40 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-600 hover:border-blue-500 hover:text-blue-500"
+            >
+              <Camera size={24} className="mb-2" />
+              <span className="text-sm">新增照片</span>
+            </button>
           )}
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handlePhotoUpload}
+          className="hidden"
+        />
+        <p className="mt-2 text-sm text-gray-500">
+          最多可上傳 4 張照片
+        </p>
       </div>
 
       <div>

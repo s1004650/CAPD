@@ -11,22 +11,28 @@ import MessagesWidget from '../components/dashboard/MessagesWidget';
 import { Link, useNavigate } from 'react-router-dom';
 
 const PatientDashboard: React.FC = () => {
-  const { dialysisRecords, vitalsRecords, alerts, messages } = useData();
+  const { dialysisRecords, vitalsRecords, exitSiteCareRecords, alerts, messages } = useData();
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // 獲取今天的日期 (YYYY-MM-DD 格式)
   const today = new Date().toISOString().split('T')[0];
   
-  // 檢查今天是否已完成紀錄
   const completedToday = useMemo(() => {
     return {
       dialysis: dialysisRecords.some(record => record.date === today),
       vitals: vitalsRecords.some(record => record.date === today),
+      exitSiteCare: exitSiteCareRecords.some(record => record.date === today),
     };
-  }, [dialysisRecords, vitalsRecords, today]);
+  }, [dialysisRecords, vitalsRecords, exitSiteCareRecords, today]);
+
+  const todayDialysisRecords = useMemo(() => {
+    return dialysisRecords.filter(record => record.date === today);
+  }, [dialysisRecords, today]);
+
+  const todayDialysisCount = useMemo(() => {
+    return todayDialysisRecords.length;
+  }, [todayDialysisRecords]);
   
-  // 獲取最新的紀錄
   const latestDialysis = useMemo(() => {
     return dialysisRecords.length > 0 ? dialysisRecords[0] : undefined;
   }, [dialysisRecords]);
@@ -34,8 +40,11 @@ const PatientDashboard: React.FC = () => {
   const latestVitals = useMemo(() => {
     return vitalsRecords.length > 0 ? vitalsRecords[0] : undefined;
   }, [vitalsRecords]);
+
+  const latestExitSiteCare = useMemo(() => {
+    return exitSiteCareRecords.length > 0 ? exitSiteCareRecords[0] : undefined;
+  }, [exitSiteCareRecords]);
   
-  // 準備圖表資料
   const bpData = useMemo(() => {
     return vitalsRecords.map(record => ({
       date: record.date,
@@ -51,10 +60,20 @@ const PatientDashboard: React.FC = () => {
   }, [vitalsRecords]);
   
   const drainageData = useMemo(() => {
-    return dialysisRecords.map(record => ({
-      date: record.date,
-      value: record.outflowVolume - record.inflowVolume,
-    }));
+    // Group records by date and calculate total drainage for each day
+    const dailyDrainage = dialysisRecords.reduce((acc, record) => {
+      const date = record.date;
+      if (!acc[date]) {
+        acc[date] = 0;
+      }
+      acc[date] += (record.outflowVolume - record.inflowVolume);
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Convert to array format needed for LineChart
+    return Object.entries(dailyDrainage)
+      .map(([date, value]) => ({ date, value }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }, [dialysisRecords]);
   
   const bloodSugarData = useMemo(() => {
@@ -65,6 +84,14 @@ const PatientDashboard: React.FC = () => {
         value: record.bloodSugar as number,
       }));
   }, [vitalsRecords]);
+
+  const mockDialysisPrescription = {
+    volumePerExchange: 2000,
+    exchangesPerDay: 4,
+    concentrationTypes: ['1.5%'],
+    notes: '每日進行4次交換，每次2000ml',
+    updatedAt: new Date().toISOString(),
+  };
   
   return (
     <Layout>
@@ -78,7 +105,11 @@ const PatientDashboard: React.FC = () => {
           <PatientSummary 
             latestDialysis={latestDialysis}
             latestVitals={latestVitals}
+            latestExitSiteCare={latestExitSiteCare}
             completedToday={completedToday}
+            dialysisPrescription={mockDialysisPrescription}
+            todayDialysisCount={todayDialysisCount}
+            todayDialysisRecords={todayDialysisRecords}
           />
         </div>
         
@@ -96,7 +127,9 @@ const PatientDashboard: React.FC = () => {
                 </div>
                 <div className="ml-3">
                   <span className="block text-sm font-medium text-blue-800">新增透析紀錄</span>
-                  <span className="block text-xs text-blue-600">記錄今日透析情況</span>
+                  <span className="block text-xs text-blue-600">
+                    {todayDialysisCount}/{mockDialysisPrescription.exchangesPerDay} 次完成
+                  </span>
                 </div>
               </Link>
               
@@ -110,6 +143,19 @@ const PatientDashboard: React.FC = () => {
                 <div className="ml-3">
                   <span className="block text-sm font-medium text-indigo-800">新增生命徵象</span>
                   <span className="block text-xs text-indigo-600">血壓、體重、血糖紀錄</span>
+                </div>
+              </Link>
+
+              <Link
+                to="/exit-site-care"
+                className="flex items-center p-3 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
+              >
+                <div className="p-2 bg-purple-100 rounded-full">
+                  <PlusCircle size={20} className="text-purple-600" />
+                </div>
+                <div className="ml-3">
+                  <span className="block text-sm font-medium text-purple-800">出口照護紀錄</span>
+                  <span className="block text-xs text-purple-600">檢查導管出口狀況</span>
                 </div>
               </Link>
               
@@ -135,9 +181,10 @@ const PatientDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div>
+
+      <div className="mb-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">趨勢分析</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <LineChart 
             title="血壓趨勢"
             data={bpData}
@@ -146,21 +193,38 @@ const PatientDashboard: React.FC = () => {
             lowThreshold={90}
             color="rgb(239, 68, 68)"
           />
-        </div>
-        
-        <div>
+          
           <LineChart 
             title="體重趨勢"
             data={weightData}
             unit="kg"
             color="rgb(16, 185, 129)"
           />
+
+          <LineChart 
+            title="每日總脫水量趨勢"
+            data={drainageData}
+            unit="ml"
+            color="rgb(59, 130, 246)"
+          />
+          
+          {bloodSugarData.length > 0 && (
+            <LineChart 
+              title="血糖趨勢"
+              data={bloodSugarData}
+              unit="mg/dL"
+              highThreshold={180}
+              lowThreshold={70}
+              color="rgb(139, 92, 246)"
+            />
+          )}
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        {latestVitals && (
-          <>
+      {latestVitals && (
+        <div className="mb-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">即時監測</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <GaugeChart
               title="最新收縮壓"
               value={latestVitals.systolicBP}
@@ -206,29 +270,9 @@ const PatientDashboard: React.FC = () => {
                 }}
               />
             )}
-          </>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <LineChart 
-          title="脫水量趨勢"
-          data={drainageData}
-          unit="ml"
-          color="rgb(59, 130, 246)"
-        />
-        
-        {bloodSugarData.length > 0 && (
-          <LineChart 
-            title="血糖趨勢"
-            data={bloodSugarData}
-            unit="mg/dL"
-            highThreshold={180}
-            lowThreshold={70}
-            color="rgb(139, 92, 246)"
-          />
-        )}
-      </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <AlertsWidget 

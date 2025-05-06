@@ -8,7 +8,8 @@ import {
   Settings,
   Users,
   BarChart2,
-  AlertTriangle
+  AlertTriangle,
+  Microscope
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
@@ -24,6 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     { name: '首頁', path: '/dashboard', icon: <Home size={20} /> },
     { name: '透析紀錄', path: '/dialysis-records', icon: <FileText size={20} /> },
     { name: '生命徵象', path: '/vitals', icon: <Activity size={20} /> },
+    { name: '出口照護', path: '/exit-site-care', icon: <Microscope size={20} /> },
     { name: '訊息通知', path: '/messages', icon: <MessageSquare size={20} /> },
     { name: '個人設定', path: '/settings', icon: <Settings size={20} /> },
   ];
@@ -72,6 +74,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
             </p>
             <p className="mt-2 text-sm font-medium text-blue-800">
               緊急專線：(03) 8561825
+              <br />
+              分機：12243、12128
+            </p>
+            <p className="mt-2 text-xs text-blue-600">
+              服務時間：
+              <br />
+              週一至週五 08:00-16:00
+              <br />
+              週六 08:00-12:00
+              <br />
+              週日休假
             </p>
           </div>
         </div>

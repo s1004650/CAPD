@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { Bell, Moon, Sun, Volume2 } from 'lucide-react';
+import { Bell, Moon, Sun, Volume2, Save, Beaker } from 'lucide-react';
+import { DialysisPrescription } from '../types';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -13,6 +14,14 @@ const Settings: React.FC = () => {
   });
   const [theme, setTheme] = useState('light');
   const [fontSize, setFontSize] = useState('medium');
+  
+  // 透析處方設定
+  const [prescription, setPrescription] = useState<DialysisPrescription>({
+    volumePerExchange: 2000,
+    exchangesPerDay: 4,
+    concentrationTypes: ['1.5%'],
+    updatedAt: new Date().toISOString(),
+  });
 
   const handleNotificationChange = (key: keyof typeof notifications) => {
     setNotifications(prev => ({
@@ -21,31 +30,112 @@ const Settings: React.FC = () => {
     }));
   };
 
+  const handleSavePrescription = () => {
+    // 在實際應用中，這裡會調用API儲存透析處方設定
+    alert('透析處方設定已更新');
+  };
+
   return (
     <Layout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">個人設定</h1>
+        <h1 className="text-2xl font-bold text-gray-900">系統設定</h1>
         <p className="text-gray-600">自訂您的使用體驗與通知設定</p>
       </div>
 
       <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">個人資料</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">姓名</label>
-              <p className="mt-1 text-sm text-gray-900">{user?.name}</p>
+        {user?.role === 'patient' && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center mb-4">
+              <Beaker className="h-5 w-5 text-blue-500 mr-2" />
+              <h2 className="text-lg font-medium text-gray-900">透析處方設定</h2>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">身分證字號</label>
-              <p className="mt-1 text-sm text-gray-900">{user?.nationalId}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">聯絡電話</label>
-              <p className="mt-1 text-sm text-gray-900">{user?.phone || '尚未設定'}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">每次交換量 (mL)</label>
+                <input
+                  type="number"
+                  value={prescription.volumePerExchange}
+                  onChange={(e) => setPrescription(prev => ({
+                    ...prev,
+                    volumePerExchange: Number(e.target.value)
+                  }))}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  min="500"
+                  max="3000"
+                  step="100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">每日交換次數</label>
+                <input
+                  type="number"
+                  value={prescription.exchangesPerDay}
+                  onChange={(e) => setPrescription(prev => ({
+                    ...prev,
+                    exchangesPerDay: Number(e.target.value)
+                  }))}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  min="1"
+                  max="6"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">透析液濃度</label>
+                <div className="space-x-2">
+                  {['1.5%', '2.5%', '4.25%', '7.5% 愛多尼爾'].map((concentration) => (
+                    <label key={concentration} className="inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={prescription.concentrationTypes.includes(concentration)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPrescription(prev => ({
+                              ...prev,
+                              concentrationTypes: [...prev.concentrationTypes, concentration]
+                            }));
+                          } else {
+                            setPrescription(prev => ({
+                              ...prev,
+                              concentrationTypes: prev.concentrationTypes.filter(c => c !== concentration)
+                            }));
+                          }
+                        }}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 mr-4 text-sm text-gray-700">{concentration}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">備註</label>
+                <textarea
+                  value={prescription.notes || ''}
+                  onChange={(e) => setPrescription(prev => ({
+                    ...prev,
+                    notes: e.target.value
+                  }))}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="輸入其他透析相關注意事項..."
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSavePrescription}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <Save size={16} className="mr-2" />
+                  儲存處方設定
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">通知設定</h2>
@@ -172,6 +262,16 @@ const Settings: React.FC = () => {
               </select>
             </div>
           </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Save size={16} className="mr-2" />
+            儲存設定
+          </button>
         </div>
       </div>
     </Layout>

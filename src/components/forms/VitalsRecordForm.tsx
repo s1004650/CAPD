@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, RefreshCw } from 'lucide-react';
+import { Save, RefreshCw, Thermometer } from 'lucide-react';
 import { VitalsRecord } from '../../types';
 
 interface VitalsRecordFormProps {
@@ -18,8 +18,8 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
   const [date, setDate] = useState<string>(today);
   const [systolicBP, setSystolicBP] = useState<number>(120);
   const [diastolicBP, setDiastolicBP] = useState<number>(80);
-  const [weight, setWeight] = useState<number>(60);
   const [bloodSugar, setBloodSugar] = useState<number | undefined>(undefined);
+  const [temperature, setTemperature] = useState<number | undefined>(undefined);
   const [notes, setNotes] = useState<string>('');
   const [hasBloodSugar, setHasBloodSugar] = useState<boolean>(false);
 
@@ -29,8 +29,8 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
       date,
       systolicBP,
       diastolicBP,
-      weight,
       bloodSugar: hasBloodSugar ? bloodSugar : undefined,
+      temperature,
       notes,
     });
   };
@@ -39,7 +39,6 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
     if (lastRecord) {
       setSystolicBP(lastRecord.systolicBP);
       setDiastolicBP(lastRecord.diastolicBP);
-      setWeight(lastRecord.weight);
       
       if (lastRecord.bloodSugar) {
         setHasBloodSugar(true);
@@ -49,6 +48,7 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
         setBloodSugar(undefined);
       }
       
+      setTemperature(lastRecord.temperature);
       setNotes(lastRecord.notes || '');
     }
   };
@@ -129,20 +129,28 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
-            體重 (kg)
+          <label htmlFor="temperature" className="block text-sm font-medium text-gray-700">
+            體溫 (°C)
           </label>
-          <input
-            type="number"
-            id="weight"
-            value={weight}
-            onChange={(e) => setWeight(Number(e.target.value))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            min="20"
-            max="200"
-            step="0.1"
-            required
-          />
+          <div className="mt-1 relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Thermometer size={16} className="text-gray-400" />
+            </div>
+            <input
+              type="number"
+              id="temperature"
+              value={temperature || ''}
+              onChange={(e) => setTemperature(e.target.value ? Number(e.target.value) : undefined)}
+              step="0.1"
+              min="35"
+              max="42"
+              placeholder="36.5"
+              className="block w-full pl-10 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+          {temperature && temperature >= 37.5 && (
+            <p className="mt-1 text-sm text-red-600">體溫偏高，請留意身體狀況</p>
+          )}
         </div>
 
         <div>

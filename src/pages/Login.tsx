@@ -17,7 +17,7 @@ const Login: React.FC = () => {
     
     try {
       await login(nationalId, password);
-      const isAdmin = nationalId === 'H987654321';
+      const isAdmin = nationalId === 'H123456789';
       navigate(isAdmin ? '/admin-dashboard' : '/dashboard');
     } catch (err: any) {
       setError('身分證字號或密碼錯誤，請重新輸入');
@@ -60,7 +60,7 @@ const Login: React.FC = () => {
               />
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              示範用帳號：A123456789（病患）或 H987654321（個管師）
+              示範用帳號：A123456789（病患）或 H123456789（個管師）
             </p>
           </div>
           

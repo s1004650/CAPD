@@ -77,5 +77,49 @@ button {
   transform: scale(1.02);
 }
 
+/* 文字大小設定 */
+.text-size-small {
+  font-size: 0.875rem;
+}
+
+.text-size-medium {
+  font-size: 1rem;
+}
+
+.text-size-large {
+  font-size: 1.125rem;
+}
+
+/* 深色主題 */
+[data-theme='dark'] {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --text-primary: #ffffff;
+  --text-secondary: #a0aec0;
+  --border-color: #404040;
+}
+
+[data-theme='dark'] body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .bg-white {
+  background-color: var(--bg-secondary);
+}
+
+[data-theme='dark'] .text-gray-900 {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .text-gray-600,
+[data-theme='dark'] .text-gray-500 {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .border-gray-200 {
+  border-color: var(--border-color);
+}
+
 /* CSS 修正：添加 Noto Sans TC 繁體中文字型 */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');

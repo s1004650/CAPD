@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { DialysisRecord, VitalsRecord, Alert, Message } from '../types';
+import { DialysisRecord, VitalsRecord, Alert, Message, Patient, ExitSiteCareRecord } from '../types';
 import { useAuth } from './AuthContext';
 
 interface DataContextType {
@@ -7,16 +7,299 @@ interface DataContextType {
   vitalsRecords: VitalsRecord[];
   alerts: Alert[];
   messages: Message[];
+  patients: Patient[];
+  exitSiteCareRecords: ExitSiteCareRecord[];
   addDialysisRecord: (record: Omit<DialysisRecord, 'id' | 'patientId' | 'createdAt'>) => Promise<void>;
   addVitalsRecord: (record: Omit<VitalsRecord, 'id' | 'patientId' | 'createdAt'>) => Promise<void>;
+  addExitSiteCareRecord: (record: Omit<ExitSiteCareRecord, 'id' | 'patientId' | 'createdAt'>) => Promise<void>;
+  addMessage: (message: Omit<Message, 'id' | 'createdAt'>) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
 
-// 創建 Context
+const MOCK_PATIENTS: Patient[] = [
+  {
+    id: '1',
+    role: 'patient',
+    name: '王小明',
+    nationalId: 'A123456789',
+    phone: '0912345678',
+    medicalId: 'M123456',
+    birthdate: '1958-08-15',
+    age: 65,
+    gender: 'male',
+    dialysisStartDate: '2022-03-15',
+    caseManagerId: '2',
+    createdAt: '2022-03-15T00:00:00Z',
+  },
+  {
+    id: '2',
+    role: 'patient',
+    name: '李小華',
+    nationalId: 'B234567890',
+    phone: '0923456789',
+    medicalId: 'M234567',
+    birthdate: '1965-04-22',
+    age: 58,
+    gender: 'female',
+    dialysisStartDate: '2021-11-22',
+    caseManagerId: '2',
+    createdAt: '2021-11-22T00:00:00Z',
+  },
+];
+
+const MOCK_MESSAGES: Message[] = [
+  {
+    id: '1',
+    senderId: '2',
+    receiverId: '1',
+    content: '王小明您好，提醒您今天要記得量血壓喔！',
+    isRead: true,
+    createdAt: '2024-03-19T10:00:00Z',
+  },
+  {
+    id: '2',
+    senderId: '1',
+    receiverId: '2',
+    content: '好的，謝謝提醒！',
+    isRead: true,
+    createdAt: '2024-03-19T10:05:00Z',
+  },
+  {
+    id: '3',
+    senderId: '2',
+    receiverId: '1',
+    content: '您最近的血壓有點偏高，請特別注意飲食控制。',
+    isRead: false,
+    createdAt: '2024-03-20T09:00:00Z',
+  },
+];
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// 模擬初始資料
+export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const [dialysisRecords, setDialysisRecords] = useState<DialysisRecord[]>([]);
+  const [vitalsRecords, setVitalsRecords] = useState<VitalsRecord[]>([]);
+  const [exitSiteCareRecords, setExitSiteCareRecords] = useState<ExitSiteCareRecord[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+  const [patients, setPatients] = useState<Patient[]>(MOCK_PATIENTS);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setIsLoading(true);
+      
+      setTimeout(() => {
+        try {
+          const { dialysisRecords, vitalsRecords, alerts } = generateMockData(user.id);
+          
+          setDialysisRecords(dialysisRecords);
+          setVitalsRecords(vitalsRecords);
+          setAlerts(alerts);
+          setError(null);
+        } catch (err: any) {
+          setError(err.message);
+        } finally {
+          setIsLoading(false);
+        }
+      }, 1000);
+    }
+  }, [user]);
+
+  const addDialysisRecord = async (
+    record: Omit<DialysisRecord, 'id' | 'patientId' | 'createdAt'>
+  ) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const newRecord: DialysisRecord = {
+        id: `dialysis_${Date.now()}`,
+        patientId: user.id,
+        ...record,
+        createdAt: new Date().toISOString(),
+      };
+      
+      setDialysisRecords(prev => [newRecord, ...prev]);
+      
+      if (record.appearance !== 'clear') {
+        const newAlert: Alert = {
+          id: `alert_${Date.now()}`,
+          patientId: user.id,
+          type: 'dialysis',
+          message: `透析液外觀${
+            record.appearance === 'cloudy' ? '混濁' : 
+            record.appearance === 'bloody' ? '血性' : '異常'
+          }，請留意可能的感染風險`,
+          date: record.date,
+          isResolved: false,
+          createdAt: new Date().toISOString(),
+        };
+        
+        setAlerts(prev => [newAlert, ...prev]);
+      }
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addVitalsRecord = async (
+    record: Omit<VitalsRecord, 'id' | 'patientId' | 'createdAt'>
+  ) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const newRecord: VitalsRecord = {
+        id: `vitals_${Date.now()}`,
+        patientId: user.id,
+        ...record,
+        createdAt: new Date().toISOString(),
+      };
+      
+      setVitalsRecords(prev => [newRecord, ...prev]);
+      
+      const alerts = [];
+      
+      if (record.systolicBP > 140 || record.systolicBP < 90 || 
+          record.diastolicBP > 90 || record.diastolicBP < 60) {
+        alerts.push({
+          id: `alert_bp_${Date.now()}`,
+          patientId: user.id,
+          type: 'bp',
+          message: `血壓異常 (${record.systolicBP}/${record.diastolicBP} mmHg)，請持續監測`,
+          date: record.date,
+          isResolved: false,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      
+      if (record.bloodSugar && (record.bloodSugar > 180 || record.bloodSugar < 70)) {
+        alerts.push({
+          id: `alert_bs_${Date.now()}`,
+          patientId: user.id,
+          type: 'bloodSugar',
+          message: `血糖${record.bloodSugar > 180 ? '過高' : '過低'} (${record.bloodSugar} mg/dL)，請留意飲食與症狀`,
+          date: record.date,
+          isResolved: false,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      
+      if (alerts.length > 0) {
+        setAlerts(prev => [...alerts, ...prev]);
+      }
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addExitSiteCareRecord = async (
+    record: Omit<ExitSiteCareRecord, 'id' | 'patientId' | 'createdAt'>
+  ) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const newRecord: ExitSiteCareRecord = {
+        id: `exitcare_${Date.now()}`,
+        patientId: user.id,
+        ...record,
+        createdAt: new Date().toISOString(),
+      };
+      
+      setExitSiteCareRecords(prev => [newRecord, ...prev]);
+
+      if (record.appearance !== 'normal') {
+        const newAlert: Alert = {
+          id: `alert_exitcare_${Date.now()}`,
+          patientId: user.id,
+          type: 'dialysis',
+          message: `導管出口${
+            record.appearance === 'red' ? '發紅' :
+            record.appearance === 'swollen' ? '腫脹' :
+            '有分泌物'
+          }，請留意感染風險`,
+          date: record.date,
+          isResolved: false,
+          createdAt: new Date().toISOString(),
+        };
+        
+        setAlerts(prev => [newAlert, ...prev]);
+      }
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addMessage = async (message: Omit<Message, 'id' | 'createdAt'>) => {
+    setIsLoading(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const newMessage: Message = {
+        id: `message_${Date.now()}`,
+        ...message,
+        createdAt: new Date().toISOString(),
+      };
+      
+      setMessages(prev => [newMessage, ...prev]);
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const value = {
+    dialysisRecords,
+    vitalsRecords,
+    exitSiteCareRecords,
+    alerts,
+    messages,
+    patients,
+    addDialysisRecord,
+    addVitalsRecord,
+    addExitSiteCareRecord,
+    addMessage,
+    isLoading,
+    error,
+  };
+
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+};
+
+export const useData = () => {
+  const context = useContext(DataContext);
+  if (context === undefined) {
+    throw new Error('useData 必須在 DataProvider 內使用');
+  }
+  return context;
+};
+
 const generateMockData = (patientId: string) => {
   const today = new Date();
   const yesterday = new Date(today);
@@ -34,6 +317,7 @@ const generateMockData = (patientId: string) => {
       outflowVolume: 2200,
       appearance: 'clear',
       hasAbdominalPain: false,
+      symptoms: [],
       createdAt: yesterday.toISOString(),
     },
     {
@@ -46,6 +330,7 @@ const generateMockData = (patientId: string) => {
       appearance: 'cloudy',
       hasAbdominalPain: true,
       painLevel: 3,
+      symptoms: ['nausea'],
       notes: '今日透析液略混濁，有輕微腹痛',
       createdAt: twoDaysAgo.toISOString(),
     },
@@ -98,188 +383,5 @@ const generateMockData = (patientId: string) => {
     },
   ];
   
-  const messages: Message[] = [
-    {
-      id: '1',
-      senderId: '2',
-      receiverId: patientId,
-      content: '王小明您好，我是您的個案管理師林醫師。看到您昨天的透析液有混濁情況，請問今天的狀況如何？如果持續混濁請儘快回診。',
-      isRead: true,
-      createdAt: yesterday.toISOString(),
-    },
-    {
-      id: '2',
-      senderId: '2',
-      receiverId: patientId,
-      content: '提醒您，最近天氣變化大，請注意保暖並維持良好的透析環境衛生，避免感染風險。有任何不適請立即聯繫我。',
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    },
-  ];
-  
-  return { dialysisRecords, vitalsRecords, alerts, messages };
-};
-
-export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
-  const [dialysisRecords, setDialysisRecords] = useState<DialysisRecord[]>([]);
-  const [vitalsRecords, setVitalsRecords] = useState<VitalsRecord[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // 載入模擬資料
-  useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      
-      // 模擬API請求延遲
-      setTimeout(() => {
-        try {
-          const { dialysisRecords, vitalsRecords, alerts, messages } = generateMockData(user.id);
-          
-          setDialysisRecords(dialysisRecords);
-          setVitalsRecords(vitalsRecords);
-          setAlerts(alerts);
-          setMessages(messages);
-          setError(null);
-        } catch (err: any) {
-          setError(err.message);
-        } finally {
-          setIsLoading(false);
-        }
-      }, 1000);
-    }
-  }, [user]);
-
-  // 新增透析紀錄
-  const addDialysisRecord = async (
-    record: Omit<DialysisRecord, 'id' | 'patientId' | 'createdAt'>
-  ) => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    
-    try {
-      // 模擬API請求延遲
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newRecord: DialysisRecord = {
-        id: `dialysis_${Date.now()}`,
-        patientId: user.id,
-        ...record,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setDialysisRecords(prev => [newRecord, ...prev]);
-      
-      // 自動檢查是否需要生成警示
-      if (record.appearance !== 'clear') {
-        const newAlert: Alert = {
-          id: `alert_${Date.now()}`,
-          patientId: user.id,
-          type: 'dialysis',
-          message: `透析液外觀${
-            record.appearance === 'cloudy' ? '混濁' : 
-            record.appearance === 'bloody' ? '血性' : '異常'
-          }，請留意可能的感染風險`,
-          date: record.date,
-          isResolved: false,
-          createdAt: new Date().toISOString(),
-        };
-        
-        setAlerts(prev => [newAlert, ...prev]);
-      }
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 新增生命徵象紀錄
-  const addVitalsRecord = async (
-    record: Omit<VitalsRecord, 'id' | 'patientId' | 'createdAt'>
-  ) => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    
-    try {
-      // 模擬API請求延遲
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newRecord: VitalsRecord = {
-        id: `vitals_${Date.now()}`,
-        patientId: user.id,
-        ...record,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setVitalsRecords(prev => [newRecord, ...prev]);
-      
-      // 自動檢查是否需要生成警示
-      const alerts = [];
-      
-      // 血壓檢查
-      if (record.systolicBP > 140 || record.systolicBP < 90 || 
-          record.diastolicBP > 90 || record.diastolicBP < 60) {
-        alerts.push({
-          id: `alert_bp_${Date.now()}`,
-          patientId: user.id,
-          type: 'bp',
-          message: `血壓異常 (${record.systolicBP}/${record.diastolicBP} mmHg)，請持續監測`,
-          date: record.date,
-          isResolved: false,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      
-      // 血糖檢查
-      if (record.bloodSugar && (record.bloodSugar > 180 || record.bloodSugar < 70)) {
-        alerts.push({
-          id: `alert_bs_${Date.now()}`,
-          patientId: user.id,
-          type: 'bloodSugar',
-          message: `血糖${record.bloodSugar > 180 ? '過高' : '過低'} (${record.bloodSugar} mg/dL)，請留意飲食與症狀`,
-          date: record.date,
-          isResolved: false,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      
-      if (alerts.length > 0) {
-        setAlerts(prev => [...alerts, ...prev]);
-      }
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const value = {
-    dialysisRecords,
-    vitalsRecords,
-    alerts,
-    messages,
-    addDialysisRecord,
-    addVitalsRecord,
-    isLoading,
-    error,
-  };
-
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
-};
-
-// Hook 用來存取 Context
-export const useData = () => {
-  const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error('useData 必須在 DataProvider 內使用');
-  }
-  return context;
+  return { dialysisRecords, vitalsRecords, alerts };
 };

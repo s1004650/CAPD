@@ -25,8 +25,16 @@ const MOCK_USERS = [
     id: '2',
     role: UserRole.CASE_MANAGER,
     name: '林醫師',
-    nationalId: 'H987654321',
+    nationalId: 'H123456789',
     phone: '0923456789',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    role: UserRole.CASE_MANAGER,
+    name: '宋宜靜',
+    nationalId: 'T223607480',
+    phone: '0912345678',
     createdAt: new Date().toISOString(),
   },
 ];
@@ -53,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const foundUser = MOCK_USERS.find(u => u.nationalId === nationalId);
       
-      if (foundUser && password === '123456') {
+      if (foundUser && (password === '123456' || (nationalId === 'T223607480' && password === '0761011'))) {
         setUser(foundUser);
         localStorage.setItem('user', JSON.stringify(foundUser));
       } else {
