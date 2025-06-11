@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,25 +8,48 @@ import LineChart from '../components/charts/LineChart';
 import GaugeChart from '../components/charts/GaugeChart';
 import AlertsWidget from '../components/dashboard/AlertsWidget';
 import MessagesWidget from '../components/dashboard/MessagesWidget';
+import MonthlyCalendar from '../components/dashboard/MonthlyCalendar';
 import { Link, useNavigate } from 'react-router-dom';
 
 const PatientDashboard: React.FC = () => {
-  const { dialysisRecords, vitalsRecords, exitSiteCareRecords, alerts, messages } = useData();
   const { user } = useAuth();
+  const { dialysisRecords, fetchDialysisRecords, vitalsignRecords, fetchVitalsignRecords,
+    exitsiteCareRecords, fetchExitsiteCareRecords, alertRecords, fetchAlertRecords,
+    messages, fetchMessages, dialysisSettings, fetchDialysisSettings } = useData();
   const navigate = useNavigate();
+
+useEffect(() => {
+  if (user) {
+    const fetchData = async (userId: string) => {
+      try {
+        await Promise.all([
+          fetchDialysisRecords(userId),
+          fetchVitalsignRecords(userId),
+          fetchExitsiteCareRecords(userId),
+          fetchAlertRecords(userId),
+          fetchMessages(userId),
+          fetchDialysisSettings(userId),
+        ]);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchData(user.id);
+  }
+}, [user]);
   
   const today = new Date().toISOString().split('T')[0];
   
   const completedToday = useMemo(() => {
     return {
-      dialysis: dialysisRecords.some(record => record.date === today),
-      vitals: vitalsRecords.some(record => record.date === today),
-      exitSiteCare: exitSiteCareRecords.some(record => record.date === today),
+      dialysis: dialysisRecords.some(record => record.recordDate.split('T')[0] === today),
+      vitalsign: vitalsignRecords.some(record => record.recordDate.split('T')[0] === today),
+      exitsiteCare: exitsiteCareRecords.some(record => record.recordDate.split('T')[0] === today),
     };
-  }, [dialysisRecords, vitalsRecords, exitSiteCareRecords, today]);
+  }, [dialysisRecords, vitalsignRecords, exitsiteCareRecords, today]);
 
   const todayDialysisRecords = useMemo(() => {
-    return dialysisRecords.filter(record => record.date === today);
+    return dialysisRecords.filter(record => record.recordDate.split('T')[0] === today);
   }, [dialysisRecords, today]);
 
   const todayDialysisCount = useMemo(() => {
@@ -37,36 +60,36 @@ const PatientDashboard: React.FC = () => {
     return dialysisRecords.length > 0 ? dialysisRecords[0] : undefined;
   }, [dialysisRecords]);
   
-  const latestVitals = useMemo(() => {
-    return vitalsRecords.length > 0 ? vitalsRecords[0] : undefined;
-  }, [vitalsRecords]);
+  const latestVitalsign = useMemo(() => {
+    return vitalsignRecords.length > 0 ? vitalsignRecords[0] : undefined;
+  }, [vitalsignRecords]);
 
-  const latestExitSiteCare = useMemo(() => {
-    return exitSiteCareRecords.length > 0 ? exitSiteCareRecords[0] : undefined;
-  }, [exitSiteCareRecords]);
+  const latestExitsiteCare = useMemo(() => {
+    return exitsiteCareRecords.length > 0 ? exitsiteCareRecords[0] : undefined;
+  }, [exitsiteCareRecords]);
   
   const bpData = useMemo(() => {
-    return vitalsRecords.map(record => ({
-      date: record.date,
+    return vitalsignRecords.map(record => ({
+      date: record.recordDate,
       value: record.systolicBP,
     }));
-  }, [vitalsRecords]);
+  }, [vitalsignRecords]);
   
   const weightData = useMemo(() => {
-    return vitalsRecords.map(record => ({
-      date: record.date,
+    return dialysisRecords.map(record => ({
+      date: record.recordDate,
       value: record.weight,
     }));
-  }, [vitalsRecords]);
+  }, [dialysisRecords]);
   
   const drainageData = useMemo(() => {
     // Group records by date and calculate total drainage for each day
     const dailyDrainage = dialysisRecords.reduce((acc, record) => {
-      const date = record.date;
+      const date = record.recordDate;
       if (!acc[date]) {
         acc[date] = 0;
       }
-      acc[date] += (record.outflowVolume - record.inflowVolume);
+      acc[date] += (record.drainedVolume - record.infusedVolume);
       return acc;
     }, {} as Record<string, number>);
 
@@ -76,27 +99,19 @@ const PatientDashboard: React.FC = () => {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [dialysisRecords]);
   
-  const bloodSugarData = useMemo(() => {
-    return vitalsRecords
-      .filter(record => record.bloodSugar !== undefined)
+  const bloodGlucoseData = useMemo(() => {
+    return vitalsignRecords
+      .filter(record => record.bloodGlucose !== undefined)
       .map(record => ({
-        date: record.date,
-        value: record.bloodSugar as number,
+        date: record.recordDate,
+        value: record.bloodGlucose as number,
       }));
-  }, [vitalsRecords]);
-
-  const mockDialysisPrescription = {
-    volumePerExchange: 2000,
-    exchangesPerDay: 4,
-    concentrationTypes: ['1.5%'],
-    notes: '每日進行4次交換，每次2000ml',
-    updatedAt: new Date().toISOString(),
-  };
+  }, [vitalsignRecords]);
   
   return (
     <Layout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">您好，{user?.name}！</h1>
+        <h1 className="text-2xl font-bold text-gray-900">您好，{user?.fullName}！</h1>
         <p className="text-gray-600">歡迎回到您的健康監測儀表板</p>
       </div>
       
@@ -104,10 +119,10 @@ const PatientDashboard: React.FC = () => {
         <div className="lg:col-span-2">
           <PatientSummary 
             latestDialysis={latestDialysis}
-            latestVitals={latestVitals}
-            latestExitSiteCare={latestExitSiteCare}
+            latestVitalsign={latestVitalsign}
+            latestExitsiteCare={latestExitsiteCare}
             completedToday={completedToday}
-            dialysisPrescription={mockDialysisPrescription}
+            dialysisSettings={dialysisSettings[0]}
             todayDialysisCount={todayDialysisCount}
             todayDialysisRecords={todayDialysisRecords}
           />
@@ -128,13 +143,13 @@ const PatientDashboard: React.FC = () => {
                 <div className="ml-3">
                   <span className="block text-sm font-medium text-blue-800">新增透析紀錄</span>
                   <span className="block text-xs text-blue-600">
-                    {todayDialysisCount}/{mockDialysisPrescription.exchangesPerDay} 次完成
+                    {todayDialysisCount}/{dialysisSettings[0]?.exchangeTimesPerday} 次完成
                   </span>
                 </div>
               </Link>
               
               <Link
-                to="/vitals"
+                to="/vitalsign-records"
                 className="flex items-center p-3 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors"
               >
                 <div className="p-2 bg-indigo-100 rounded-full">
@@ -142,12 +157,12 @@ const PatientDashboard: React.FC = () => {
                 </div>
                 <div className="ml-3">
                   <span className="block text-sm font-medium text-indigo-800">新增生命徵象</span>
-                  <span className="block text-xs text-indigo-600">血壓、體重、血糖紀錄</span>
+                  <span className="block text-xs text-indigo-600">血壓、血糖紀錄</span>
                 </div>
               </Link>
 
               <Link
-                to="/exit-site-care"
+                to="/exitsite-care-records"
                 className="flex items-center p-3 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
               >
                 <div className="p-2 bg-purple-100 rounded-full">
@@ -183,6 +198,13 @@ const PatientDashboard: React.FC = () => {
       </div>
 
       <div className="mb-6">
+          <MonthlyCalendar 
+            dialysisRecords={dialysisRecords}
+            vitalsignRecords={vitalsignRecords}
+          />
+        </div>
+
+      <div className="mb-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">趨勢分析</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <LineChart 
@@ -208,10 +230,10 @@ const PatientDashboard: React.FC = () => {
             color="rgb(59, 130, 246)"
           />
           
-          {bloodSugarData.length > 0 && (
+          {bloodGlucoseData.length > 0 && (
             <LineChart 
               title="血糖趨勢"
-              data={bloodSugarData}
+              data={bloodGlucoseData}
               unit="mg/dL"
               highThreshold={180}
               lowThreshold={70}
@@ -221,13 +243,13 @@ const PatientDashboard: React.FC = () => {
         </div>
       </div>
       
-      {latestVitals && (
+      {latestVitalsign && (
         <div className="mb-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">即時監測</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <GaugeChart
               title="最新收縮壓"
-              value={latestVitals.systolicBP}
+              value={latestVitalsign.systolicBP}
               min={80}
               max={180}
               unit="mmHg"
@@ -239,7 +261,7 @@ const PatientDashboard: React.FC = () => {
             
             <GaugeChart
               title="最新舒張壓"
-              value={latestVitals.diastolicBP}
+              value={latestVitalsign.diastolicBP}
               min={40}
               max={120}
               unit="mmHg"
@@ -251,16 +273,16 @@ const PatientDashboard: React.FC = () => {
             
             <GaugeChart
               title="最新體重"
-              value={latestVitals.weight}
+              value={latestDialysis?.weight ?? 0}
               min={40}
               max={100}
               unit="kg"
             />
             
-            {latestVitals.bloodSugar && (
+            {latestVitalsign.bloodGlucose && (
               <GaugeChart
                 title="最新血糖"
-                value={latestVitals.bloodSugar}
+                value={latestVitalsign.bloodGlucose}
                 min={50}
                 max={250}
                 unit="mg/dL"
@@ -276,8 +298,8 @@ const PatientDashboard: React.FC = () => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <AlertsWidget 
-          alerts={alerts}
-          onViewAll={() => navigate('/alerts')}
+          alertRecords={alertRecords}
+          onViewAll={() => navigate('/alert-records')}
         />
         
         <MessagesWidget 

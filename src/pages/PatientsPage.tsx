@@ -1,46 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, UserPlus, MessageSquare, X } from 'lucide-react';
-import Layout from '../components/layout/Layout';
-import { useData } from '../contexts/DataContext';
 import { Dialog, Transition } from '@headlessui/react';
-import { Patient, UserRole } from '../types';
+import { useData } from '../contexts/DataContext';
+import Layout from '../components/layout/Layout';
+import { UserInput, UserRole } from '../types';
 
 const PatientsPage: React.FC = () => {
-  const { patients, addMessage } = useData();
+  const { addUser, patientSummaries, fetchPatientSummaries, addMessage } = useData();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'stable' | 'warning' | 'critical'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'stable' | 'warning' | 'danger'>('all');
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [messageContent, setMessageContent] = useState('');
-  const [newPatient, setNewPatient] = useState({
-    name: '',
-    nationalId: '',
-    phone: '',
+  const [newPatient, setNewPatient] = useState<UserInput>({
+    fullName: '',
+    caseNumber: '',
     birthdate: '',
     gender: 'male',
-    dialysisStartDate: new Date().toISOString().split('T')[0],
+    dialysisStartDate: '',
+    role: UserRole.PATIENT,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await fetchPatientSummaries();
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchData();
+  }, []);
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
     
-    if (!newPatient.name.trim()) {
-      errors.name = '請輸入姓名';
+    if (!newPatient.fullName.trim()) {
+      errors.fullName = '請輸入姓名';
     }
     
-    if (!newPatient.nationalId.trim()) {
-      errors.nationalId = '請輸入身分證字號';
-    } else if (!/^[A-Z][12]\d{8}$/.test(newPatient.nationalId)) {
-      errors.nationalId = '身分證字號格式不正確';
-    }
-    
-    if (!newPatient.phone.trim()) {
-      errors.phone = '請輸入聯絡電話';
-    } else if (!/^\d{10}$/.test(newPatient.phone)) {
-      errors.phone = '電話號碼格式不正確';
+    if (!(newPatient.caseNumber ?? '').trim()) {
+      errors.caseNumber = '請輸入身分證字號';
+    } else if (newPatient.caseNumber && !/^[A-Z][12]\d{8}$/.test(newPatient.caseNumber)) {
+      errors.caseNumber = '身分證字號格式不正確';
     }
     
     if (!newPatient.birthdate) {
@@ -51,40 +56,29 @@ const PatientsPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleAddPatient = () => {
+  const handleAddPatient = async () => {
     if (!validateForm()) return;
 
-    const birthDate = new Date(newPatient.birthdate);
-    const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-
-    const patient: Patient = {
-      id: `patient_${Date.now()}`,
-      role: UserRole.PATIENT,
-      name: newPatient.name,
-      nationalId: newPatient.nationalId,
-      phone: newPatient.phone,
+    await addUser({
+      fullName: newPatient.fullName,
+      caseNumber: newPatient.caseNumber,
       birthdate: newPatient.birthdate,
-      age,
-      gender: newPatient.gender as 'male' | 'female',
-      dialysisStartDate: newPatient.dialysisStartDate,
-      caseManagerId: '2', // 假設當前登入的管理者ID為2
-      createdAt: new Date().toISOString(),
-    };
-
-    // 在實際應用中，這裡會調用API新增病患
-    console.log('Adding new patient:', patient);
+      gender: newPatient.gender,
+      dialysisStartDate: newPatient.dialysisStartDate || undefined,
+      role: newPatient.role,
+    });
     
-    // 重置表單並關閉modal
     setNewPatient({
-      name: '',
-      nationalId: '',
-      phone: '',
+      fullName: '',
+      caseNumber: '',
       birthdate: '',
       gender: 'male',
-      dialysisStartDate: new Date().toISOString().split('T')[0],
+      dialysisStartDate: '',
+      role: UserRole.PATIENT,
     });
     setIsAddPatientModalOpen(false);
+
+    await fetchPatientSummaries();
   };
 
   const handleViewDetails = (patient: any) => {
@@ -102,12 +96,10 @@ const PatientsPage: React.FC = () => {
     
     try {
       await addMessage({
-        senderId: '2',
         receiverId: selectedPatient.id,
         content: messageContent,
         isRead: false,
       });
-      
       setMessageContent('');
       setIsMessageModalOpen(false);
     } catch (error) {
@@ -121,7 +113,7 @@ const PatientsPage: React.FC = () => {
         return 'bg-green-100 text-green-800';
       case 'warning':
         return 'bg-yellow-100 text-yellow-800';
-      case 'critical':
+      case 'danger':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -131,8 +123,8 @@ const PatientsPage: React.FC = () => {
   return (
     <Layout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">病患管理</h1>
-        <p className="text-gray-600">管理並監控所有透析病患的狀況</p>
+        <h1 className="text-2xl font-bold text-gray-900">病人管理</h1>
+        <p className="text-gray-600">管理並監控所有透析病人的狀況</p>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm">
@@ -144,7 +136,7 @@ const PatientsPage: React.FC = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   <input
                     type="text"
-                    placeholder="搜尋病患姓名或身分證字號..."
+                    placeholder="搜尋病人姓名或身分證字號..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
@@ -162,7 +154,7 @@ const PatientsPage: React.FC = () => {
                     <option value="all">全部狀態</option>
                     <option value="stable">穩定</option>
                     <option value="warning">需注意</option>
-                    <option value="critical">警示</option>
+                    <option value="danger">警示</option>
                   </select>
                 </div>
               </div>
@@ -172,7 +164,7 @@ const PatientsPage: React.FC = () => {
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <UserPlus size={20} className="mr-2" />
-              新增病患
+              新增病人
             </button>
           </div>
         </div>
@@ -182,10 +174,10 @@ const PatientsPage: React.FC = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  病患資訊
+                  病人資訊
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  開始日期
+                  開始透析日期
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   狀態
@@ -196,14 +188,14 @@ const PatientsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {patients.map((patient) => (
+              {patientSummaries.map((patient) => (
                 <tr key={patient.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{patient.name}</div>
+                        <div className="text-sm font-medium text-gray-900">{patient.fullName}</div>
                         <div className="text-sm text-gray-500">
-                          {patient.age}歲 · {patient.gender === 'male' ? '男' : '女'}
+                          {patient.age}歲 · {patient.gender}
                         </div>
                       </div>
                     </div>
@@ -212,8 +204,9 @@ const PatientsPage: React.FC = () => {
                     {patient.dialysisStartDate}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor('stable')}`}>
-                      穩定
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(patient.status)}`}>
+                      {patient.status === 'danger' ? '警示' :
+                       patient.status === 'warning' ? '需注意' : '穩定'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -237,7 +230,7 @@ const PatientsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 新增病患對話框 */}
+      {/* 新增病人對話框 */}
       <Transition show={isAddPatientModalOpen} as={React.Fragment}>
         <Dialog
           as="div"
@@ -250,7 +243,7 @@ const PatientsPage: React.FC = () => {
             <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
               <div className="flex justify-between items-center mb-4">
                 <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                  新增病患
+                  新增病人
                 </Dialog.Title>
                 <button
                   onClick={() => setIsAddPatientModalOpen(false)}
@@ -265,12 +258,12 @@ const PatientsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">姓名</label>
                   <input
                     type="text"
-                    value={newPatient.name}
-                    onChange={(e) => setNewPatient(prev => ({ ...prev, name: e.target.value }))}
+                    value={newPatient.fullName}
+                    onChange={(e) => setNewPatient(prev => ({ ...prev, fullName: e.target.value }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
-                  {formErrors.name && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                  {formErrors.fullName && (
+                    <p className="mt-1 text-sm text-red-600">{formErrors.fullName}</p>
                   )}
                 </div>
 
@@ -278,17 +271,17 @@ const PatientsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">身分證字號</label>
                   <input
                     type="text"
-                    value={newPatient.nationalId}
-                    onChange={(e) => setNewPatient(prev => ({ ...prev, nationalId: e.target.value.toUpperCase() }))}
+                    value={newPatient.caseNumber}
+                    onChange={(e) => setNewPatient(prev => ({ ...prev, caseNumber: e.target.value.toUpperCase() }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     maxLength={10}
                   />
-                  {formErrors.nationalId && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.nationalId}</p>
+                  {formErrors.caseNumber && (
+                    <p className="mt-1 text-sm text-red-600">{formErrors.caseNumber}</p>
                   )}
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700">聯絡電話</label>
                   <input
                     type="tel"
@@ -300,7 +293,7 @@ const PatientsPage: React.FC = () => {
                   {formErrors.phone && (
                     <p className="mt-1 text-sm text-red-600">{formErrors.phone}</p>
                   )}
-                </div>
+                </div> */}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">出生日期</label>
@@ -319,11 +312,26 @@ const PatientsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">性別</label>
                   <select
                     value={newPatient.gender}
-                    onChange={(e) => setNewPatient(prev => ({ ...prev, gender: e.target.value }))}
+                    onChange={(e) => setNewPatient(prev => ({ ...prev, gender: e.target.value as 'male' | 'female' }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="male">男</option>
                     <option value="female">女</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                    角色
+                  </label>
+                  <select
+                    id="role"
+                    value={newPatient.role}
+                    onChange={(e) => setNewPatient((prev) => ({ ...prev, role: e.target.value as UserRole }))}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value={UserRole.PATIENT}>病人</option>
+                    <option value={UserRole.ADMIN}>個管師</option>
                   </select>
                 </div>
 
@@ -371,7 +379,7 @@ const PatientsPage: React.FC = () => {
             <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
             <div className="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
               <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                病患詳細資料
+                病人詳細資料
               </Dialog.Title>
               {selectedPatient && (
                 <div className="mt-4">
@@ -379,12 +387,12 @@ const PatientsPage: React.FC = () => {
                     <div>
                       <h4 className="font-medium text-gray-700">基本資料</h4>
                       <div className="mt-2 space-y-2">
-                        <p className="text-sm text-gray-600">姓名：{selectedPatient.name}</p>
+                        <p className="text-sm text-gray-600">姓名：{selectedPatient.fullName}</p>
                         <p className="text-sm text-gray-600">年齡：{selectedPatient.age}歲</p>
-                        <p className="text-sm text-gray-600">性別：{selectedPatient.gender === 'male' ? '男' : '女'}</p>
-                        <p className="text-sm text-gray-600">身分證字號：{selectedPatient.nationalId}</p>
-                        <p className="text-sm text-gray-600">聯絡電話：{selectedPatient.phone}</p>
-                        <p className="text-sm text-gray-600">開始透析：{selectedPatient.dialysisStartDate}</p>
+                        <p className="text-sm text-gray-600">性別：{selectedPatient.gender}</p>
+                        <p className="text-sm text-gray-600">身分證字號：{selectedPatient.caseNumber}</p>
+                        {/* <p className="text-sm text-gray-600">聯絡電話：{selectedPatient.phone}</p> */}
+                        <p className="text-sm text-gray-600">開始透析日期：{selectedPatient.dialysisStartDate}</p>
                       </div>
                     </div>
                     <div>
@@ -424,7 +432,7 @@ const PatientsPage: React.FC = () => {
             <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
             <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
               <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                發送訊息給 {selectedPatient?.name}
+                發送訊息給 {selectedPatient?.fullName}
               </Dialog.Title>
               <div className="mt-4">
                 <textarea
@@ -438,7 +446,10 @@ const PatientsPage: React.FC = () => {
                 <button
                   type="button"
                   className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-transparent rounded-md hover:bg-gray-200 focus:outline-none"
-                  onClick={() => setIsMessageModalOpen(false)}
+                  onClick={() => {
+                    setMessageContent('');
+                    setIsMessageModalOpen(false);
+                  }}
                 >
                   取消
                 </button>

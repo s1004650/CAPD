@@ -1,37 +1,42 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Save, RefreshCw, Thermometer } from 'lucide-react';
-import { VitalsRecord } from '../../types';
+import { VitalsignRecord, VitalsignRecordInput } from '../../types';
 
-interface VitalsRecordFormProps {
-  onSubmit: (data: Omit<VitalsRecord, 'id' | 'patientId' | 'createdAt'>) => void;
-  lastRecord?: Omit<VitalsRecord, 'id' | 'patientId' | 'createdAt'>;
+interface VitalsignRecordFormProps {
+  onSubmit: (data: VitalsignRecordInput) => void;
+  lastRecord?: VitalsignRecord;
   isLoading?: boolean;
 }
 
-const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
+const VitalsignRecordForm: React.FC<VitalsignRecordFormProps> = ({
   onSubmit,
   lastRecord,
   isLoading = false,
 }) => {
+  const navigate = useNavigate();
+
   const today = new Date().toISOString().split('T')[0];
 
   const [date, setDate] = useState<string>(today);
   const [systolicBP, setSystolicBP] = useState<number>(120);
   const [diastolicBP, setDiastolicBP] = useState<number>(80);
-  const [bloodSugar, setBloodSugar] = useState<number | undefined>(undefined);
+  const [bloodGlucose, setBloodGlucose] = useState<number | undefined>(undefined);
   const [temperature, setTemperature] = useState<number | undefined>(undefined);
-  const [notes, setNotes] = useState<string>('');
-  const [hasBloodSugar, setHasBloodSugar] = useState<boolean>(false);
+  const [note, setNote] = useState<string>('');
+  const [needBloodGlucose, setNeedBloodGlucose] = useState<boolean>(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
     onSubmit({
-      date,
+      recordDate: `${date}T00:00:00`,
       systolicBP,
       diastolicBP,
-      bloodSugar: hasBloodSugar ? bloodSugar : undefined,
-      temperature,
-      notes,
+      temperature: temperature ?? 0,
+      needBloodGlucose,
+      bloodGlucose: needBloodGlucose ? bloodGlucose : undefined,
+      note,
     });
   };
 
@@ -40,23 +45,23 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
       setSystolicBP(lastRecord.systolicBP);
       setDiastolicBP(lastRecord.diastolicBP);
       
-      if (lastRecord.bloodSugar) {
-        setHasBloodSugar(true);
-        setBloodSugar(lastRecord.bloodSugar);
+      if (lastRecord.needBloodGlucose) {
+        setNeedBloodGlucose(true);
+        setBloodGlucose(lastRecord.bloodGlucose);
       } else {
-        setHasBloodSugar(false);
-        setBloodSugar(undefined);
+        setNeedBloodGlucose(false);
+        setBloodGlucose(undefined);
       }
       
       setTemperature(lastRecord.temperature);
-      setNotes(lastRecord.notes || '');
+      setNote(lastRecord.note || '');
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium text-gray-900">生命徵象紀錄</h2>
+        {/* <h2 className="text-lg font-medium text-gray-900">生命徵象紀錄</h2> */}
         {lastRecord && (
           <button
             type="button"
@@ -64,7 +69,7 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
             className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
           >
             <RefreshCw size={16} className="mr-1" />
-            使用上次數值
+            使用上次紀錄
           </button>
         )}
       </div>
@@ -156,36 +161,36 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
         <div>
           <div className="flex items-center">
             <input
-              id="hasBloodSugar"
+              id="needBloodGlucose"
               type="checkbox"
-              checked={hasBloodSugar}
-              onChange={(e) => setHasBloodSugar(e.target.checked)}
+              checked={needBloodGlucose}
+              onChange={(e) => setNeedBloodGlucose(e.target.checked)}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label htmlFor="hasBloodSugar" className="ml-2 block text-sm font-medium text-gray-700">
+            <label htmlFor="needBloodGlucose" className="ml-2 block text-sm font-medium text-gray-700">
               需要紀錄血糖
             </label>
           </div>
 
-          {hasBloodSugar && (
+          {needBloodGlucose && (
             <div className="mt-3">
-              <label htmlFor="bloodSugar" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="bloodGlucose" className="block text-sm font-medium text-gray-700">
                 血糖值 (mg/dL)
               </label>
               <input
                 type="number"
-                id="bloodSugar"
-                value={bloodSugar || ''}
-                onChange={(e) => setBloodSugar(e.target.value ? Number(e.target.value) : undefined)}
+                id="bloodGlucose"
+                value={bloodGlucose || ''}
+                onChange={(e) => setBloodGlucose(e.target.value ? Number(e.target.value) : undefined)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 min="20"
                 max="500"
-                required={hasBloodSugar}
+                required={needBloodGlucose}
               />
-              {bloodSugar && bloodSugar > 180 && (
+              {bloodGlucose && bloodGlucose > 180 && (
                 <p className="mt-1 text-sm text-red-600">血糖偏高，請留意飲食控制並諮詢醫療人員</p>
               )}
-              {bloodSugar && bloodSugar < 70 && (
+              {bloodGlucose && bloodGlucose < 70 && (
                 <p className="mt-1 text-sm text-red-600">血糖偏低，請適當進食並諮詢醫療人員</p>
               )}
             </div>
@@ -194,24 +199,24 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
       </div>
 
       <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="note" className="block text-sm font-medium text-gray-700">
           備註
         </label>
         <textarea
-          id="notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          id="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
           rows={3}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           placeholder="輸入其他狀況或症狀..."
         ></textarea>
       </div>
 
-      <div>
+      <div className="flex justify-front space-x-3">
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
         >
           {isLoading ? (
             <>
@@ -228,9 +233,16 @@ const VitalsRecordForm: React.FC<VitalsRecordFormProps> = ({
             </>
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          取消
+        </button>
       </div>
     </form>
   );
 };
 
-export default VitalsRecordForm;
+export default VitalsignRecordForm;

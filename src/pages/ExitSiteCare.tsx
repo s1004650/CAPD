@@ -1,29 +1,50 @@
-import React, { useState, useRef } from 'react';
+import React, { useState/*, useRef*/ } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Camera, Upload, Save, X, Check } from 'lucide-react';
-import Layout from '../components/layout/Layout';
+import { ChevronLeft, Save, Check, RefreshCw/*, Camera, Upload, X*/ } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import Layout from '../components/layout/Layout';
 
 const ExitSiteCare: React.FC = () => {
+  const { exitsiteCareRecords, addExitsiteCareRecord, isLoading } = useData();
   const navigate = useNavigate();
-  const { addExitSiteCareRecord, isLoading } = useData();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photos, setPhotos] = useState<string[]>([]);
+  /* const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photos, setPhotos] = useState<string[]>([]); */
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    appearance: 'normal',
-    hasDischarge: false,
+    exitsiteAppearance: 'normal',
+    discharge: false,
     dischargeColor: 'clear',
     dischargeAmount: 'small',
-    hasPain: false,
-    painLevel: 0,
-    hasScab: false,
-    hasTunnel: false,
-    notes: '',
+    pain: false,
+    painScore: 0,
+    scab: false,
+    tunnelInfection: false,
+    note: '',
   });
 
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const lastRecord = exitsiteCareRecords.length > 0 
+    ? exitsiteCareRecords[0] 
+    : undefined;
+
+  const useLastRecord = () => {
+    if (lastRecord) {
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        exitsiteAppearance: lastRecord.exitsiteAppearance,
+        discharge: lastRecord.discharge,
+        dischargeColor: lastRecord.dischargeColor ?? 'clear',
+        dischargeAmount: lastRecord.dischargeAmount ?? 'small',
+        pain: lastRecord.pain,
+        painScore: lastRecord.painScore || 0,
+        scab: lastRecord.scab,
+        tunnelInfection: lastRecord.tunnelInfection,
+        note: lastRecord.note ?? '',
+      });
+    }
+  };
+
+  /* const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
       Array.from(files).forEach(file => {
@@ -38,26 +59,25 @@ const ExitSiteCare: React.FC = () => {
 
   const removePhoto = (index: number) => {
     setPhotos(prev => prev.filter((_, i) => i !== index));
-  };
+  }; */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      await addExitSiteCareRecord({
-        date: formData.date,
-        appearance: formData.appearance as 'normal' | 'red' | 'swollen' | 'discharge',
-        hasDischarge: formData.hasDischarge,
-        dischargeTrait: formData.hasDischarge ? {
-          color: formData.dischargeColor as 'clear' | 'yellow' | 'green' | 'bloody',
-          amount: formData.dischargeAmount as 'small' | 'moderate' | 'large',
-        } : undefined,
-        hasPain: formData.hasPain,
-        painLevel: formData.hasPain ? formData.painLevel : undefined,
-        hasScab: formData.hasScab,
-        hasTunnel: formData.hasTunnel,
-        photos,
-        notes: formData.notes,
+      const recordDateTime = `${formData.date}T00:00:00`
+      await addExitsiteCareRecord({
+        recordDate: recordDateTime,
+        exitsiteAppearance: formData.exitsiteAppearance as 'normal' | 'red' | 'swollen' | 'discharge',
+        discharge: formData.discharge,
+        dischargeColor: formData.dischargeColor as 'clear' | 'yellow' | 'green' | 'bloody',
+        dischargeAmount: formData.dischargeAmount as 'small' | 'moderate' | 'large',
+        pain: formData.pain,
+        painScore: formData.pain ? formData.painScore : undefined,
+        scab: formData.scab,
+        tunnelInfection: formData.tunnelInfection,
+        // photos,
+        note: formData.note,
       });
       
       setSuccess(true);
@@ -76,7 +96,7 @@ const ExitSiteCare: React.FC = () => {
       <Layout>
         <div className="mb-6">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/dashboard')}
             className="inline-flex items-center text-blue-600 hover:text-blue-800"
           >
             <ChevronLeft size={20} />
@@ -104,7 +124,7 @@ const ExitSiteCare: React.FC = () => {
 
   return (
     <Layout>
-      <div className="mb-6">
+      {/* <div className="mb-6">
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center text-blue-600 hover:text-blue-800"
@@ -112,7 +132,7 @@ const ExitSiteCare: React.FC = () => {
           <ChevronLeft size={20} />
           <span>返回</span>
         </button>
-      </div>
+      </div> */}
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">出口照護紀錄</h1>
@@ -120,6 +140,19 @@ const ExitSiteCare: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
+        <div className="flex justify-between items-center">
+          {lastRecord && (
+            <button
+              type="button"
+              onClick={useLastRecord}
+              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+            >
+              <RefreshCw size={16} className="mr-1" />
+              使用上次紀錄
+            </button>
+          )}
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -139,8 +172,8 @@ const ExitSiteCare: React.FC = () => {
               出口外觀
             </label>
             <select
-              value={formData.appearance}
-              onChange={(e) => setFormData(prev => ({ ...prev, appearance: e.target.value }))}
+              value={formData.exitsiteAppearance}
+              onChange={(e) => setFormData(prev => ({ ...prev, exitsiteAppearance: e.target.value }))}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               required
             >
@@ -155,17 +188,17 @@ const ExitSiteCare: React.FC = () => {
             <div className="flex items-center">
               <input
                 type="checkbox"
-                id="hasDischarge"
-                checked={formData.hasDischarge}
-                onChange={(e) => setFormData(prev => ({ ...prev, hasDischarge: e.target.checked }))}
+                id="discharge"
+                checked={formData.discharge}
+                onChange={(e) => setFormData(prev => ({ ...prev, discharge: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <label htmlFor="hasDischarge" className="ml-2 block text-sm font-medium text-gray-700">
+              <label htmlFor="discharge" className="ml-2 block text-sm font-medium text-gray-700">
                 有分泌物
               </label>
             </div>
 
-            {formData.hasDischarge && (
+            {formData.discharge && (
               <div className="mt-3 space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
@@ -205,28 +238,28 @@ const ExitSiteCare: React.FC = () => {
             <div className="flex items-center">
               <input
                 type="checkbox"
-                id="hasPain"
-                checked={formData.hasPain}
-                onChange={(e) => setFormData(prev => ({ ...prev, hasPain: e.target.checked }))}
+                id="pain"
+                checked={formData.pain}
+                onChange={(e) => setFormData(prev => ({ ...prev, pain: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <label htmlFor="hasPain" className="ml-2 block text-sm font-medium text-gray-700">
+              <label htmlFor="pain" className="ml-2 block text-sm font-medium text-gray-700">
                 有疼痛
               </label>
             </div>
 
-            {formData.hasPain && (
+            {formData.pain && (
               <div className="mt-3">
-                <label htmlFor="painLevel" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="painScore" className="block text-sm font-medium text-gray-700">
                   疼痛程度 (1-10)
                 </label>
                 <input
                   type="range"
-                  id="painLevel"
+                  id="painScore"
                   min="1"
                   max="10"
-                  value={formData.painLevel}
-                  onChange={(e) => setFormData(prev => ({ ...prev, painLevel: Number(e.target.value) }))}
+                  value={formData.painScore}
+                  onChange={(e) => setFormData(prev => ({ ...prev, painScore: Number(e.target.value) }))}
                   className="mt-1 block w-full"
                 />
                 <div className="flex justify-between text-xs text-gray-500">
@@ -242,12 +275,12 @@ const ExitSiteCare: React.FC = () => {
             <div className="flex items-center">
               <input
                 type="checkbox"
-                id="hasScab"
-                checked={formData.hasScab}
-                onChange={(e) => setFormData(prev => ({ ...prev, hasScab: e.target.checked }))}
+                id="scab"
+                checked={formData.scab}
+                onChange={(e) => setFormData(prev => ({ ...prev, scab: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <label htmlFor="hasScab" className="ml-2 block text-sm font-medium text-gray-700">
+              <label htmlFor="scab" className="ml-2 block text-sm font-medium text-gray-700">
                 有結痂
               </label>
             </div>
@@ -257,19 +290,19 @@ const ExitSiteCare: React.FC = () => {
             <div className="flex items-center">
               <input
                 type="checkbox"
-                id="hasTunnel"
-                checked={formData.hasTunnel}
-                onChange={(e) => setFormData(prev => ({ ...prev, hasTunnel: e.target.checked }))}
+                id="tunnelInfection"
+                checked={formData.tunnelInfection}
+                onChange={(e) => setFormData(prev => ({ ...prev, tunnelInfection: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <label htmlFor="hasTunnel" className="ml-2 block text-sm font-medium text-gray-700">
+              <label htmlFor="tunnelInfection" className="ml-2 block text-sm font-medium text-gray-700">
                 有隧道感染
               </label>
             </div>
           </div>
         </div>
 
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             出口照片
           </label>
@@ -312,30 +345,23 @@ const ExitSiteCare: React.FC = () => {
           <p className="mt-2 text-sm text-gray-500">
             最多可上傳 4 張照片
           </p>
-        </div>
+        </div> */}
 
         <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="note" className="block text-sm font-medium text-gray-700">
             備註
           </label>
           <textarea
-            id="notes"
-            value={formData.notes}
-            onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+            id="note"
+            value={formData.note}
+            onChange={(e) => setFormData(prev => ({ ...prev, note: e.target.value }))}
             rows={3}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="輸入其他觀察或症狀..."
           />
         </div>
 
-        <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            取消
-          </button>
+        <div className="flex justify-front space-x-3">
           <button
             type="submit"
             disabled={isLoading}
@@ -355,6 +381,13 @@ const ExitSiteCare: React.FC = () => {
                 儲存紀錄
               </>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            取消
           </button>
         </div>
       </form>

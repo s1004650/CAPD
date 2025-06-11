@@ -90,7 +90,20 @@ button {
   font-size: 1.125rem;
 }
 
-/* 深色主題 */
+/* 文字大小 */
+[data-font-size='small'] {
+  font-size: 0.875rem;
+}
+
+[data-font-size='medium'] {
+  font-size: 1rem;
+}
+
+[data-font-size='large'] {
+  font-size: 1.125rem;
+}
+
+/* 主題 */
 [data-theme='dark'] {
   --bg-primary: #1a1a1a;
   --bg-secondary: #2d2d2d;

@@ -1,27 +1,27 @@
 import React from 'react';
 import { Activity, Droplet, Weight, BarChart2, Microscope } from 'lucide-react';
-import { DialysisRecord, VitalsRecord, DialysisPrescription, ExitSiteCareRecord } from '../../types';
+import { DialysisRecord, VitalsignRecord, ExitsiteCareRecord, DialysisSetting } from '../../types';
 
 interface PatientSummaryProps {
   latestDialysis?: DialysisRecord;
-  latestVitals?: VitalsRecord;
-  latestExitSiteCare?: ExitSiteCareRecord;
+  latestVitalsign?: VitalsignRecord;
+  latestExitsiteCare?: ExitsiteCareRecord;
   completedToday: {
     dialysis: boolean;
-    vitals: boolean;
-    exitSiteCare: boolean;
+    vitalsign: boolean;
+    exitsiteCare: boolean;
   };
-  dialysisPrescription?: DialysisPrescription;
+  dialysisSettings: DialysisSetting;
   todayDialysisCount: number;
   todayDialysisRecords?: DialysisRecord[];
 }
 
 const PatientSummary: React.FC<PatientSummaryProps> = ({
   latestDialysis,
-  latestVitals,
-  latestExitSiteCare,
+  latestVitalsign,
+  latestExitsiteCare,
   completedToday,
-  dialysisPrescription,
+  dialysisSettings,
   todayDialysisCount,
   todayDialysisRecords = [],
 }) => {
@@ -33,13 +33,13 @@ const PatientSummary: React.FC<PatientSummaryProps> = ({
   };
 
   // 檢查今日透析是否完成
-  const isDialysisCompleted = dialysisPrescription 
-    ? todayDialysisCount >= dialysisPrescription.exchangesPerDay
+  const isDialysisCompleted = dialysisSettings 
+    ? todayDialysisCount >= dialysisSettings.exchangeTimesPerday
     : completedToday.dialysis;
 
   // 計算今日總脫水量
   const totalDrainageVolume = todayDialysisRecords.reduce((total, record) => {
-    return total + (record.outflowVolume - record.inflowVolume);
+    return total + record.ultrafiltrationVolume;
   }, 0);
 
   return (
@@ -60,9 +60,9 @@ const PatientSummary: React.FC<PatientSummaryProps> = ({
                 <span className={`text-sm font-medium ${isDialysisCompleted ? 'text-green-600' : 'text-amber-600'}`}>
                   {isDialysisCompleted ? '已完成' : '未完成'}
                 </span>
-                {dialysisPrescription && (
+                {dialysisSettings && (
                   <span className="text-xs text-gray-500 ml-2">
-                    ({todayDialysisCount}/{dialysisPrescription.exchangesPerDay}次)
+                    ({todayDialysisCount}/{dialysisSettings.exchangeTimesPerday}次)
                   </span>
                 )}
               </div>
@@ -73,25 +73,25 @@ const PatientSummary: React.FC<PatientSummaryProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">最新紀錄日期</span>
                   <span className="text-sm font-medium text-gray-800">
-                    {formatDate(latestDialysis.date)}
+                    {formatDate(latestDialysis.recordDate)}
                   </span>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">注入/引流量</span>
                   <span className="text-sm font-medium text-gray-800">
-                    {latestDialysis.inflowVolume}/{latestDialysis.outflowVolume} ml
+                    {latestDialysis.infusedVolume}/{latestDialysis.drainedVolume} ml
                   </span>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">最新脫水量</span>
                   <span className={`text-sm font-medium ${
-                    (latestDialysis.outflowVolume - latestDialysis.inflowVolume) < 0 
+                    latestDialysis.ultrafiltrationVolume < 0 
                       ? 'text-red-600' 
                       : 'text-gray-800'
                   }`}>
-                    {latestDialysis.outflowVolume - latestDialysis.inflowVolume} ml
+                    {latestDialysis.ultrafiltrationVolume} ml
                   </span>
                 </div>
 
@@ -109,12 +109,19 @@ const PatientSummary: React.FC<PatientSummaryProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">液體外觀</span>
                   <span className={`text-sm font-medium ${
-                    latestDialysis.appearance !== 'clear' ? 'text-red-600' : 'text-gray-800'
+                    latestDialysis.dialysateAppearance !== 'clear' ? 'text-red-600' : 'text-gray-800'
                   }`}>
-                    {latestDialysis.appearance === 'clear' && '清澈'}
-                    {latestDialysis.appearance === 'cloudy' && '混濁'}
-                    {latestDialysis.appearance === 'bloody' && '血性'}
-                    {latestDialysis.appearance === 'other' && '其他'}
+                    {latestDialysis.dialysateAppearance === 'clear' && '清澈'}
+                    {latestDialysis.dialysateAppearance === 'cloudy' && '混濁'}
+                    {latestDialysis.dialysateAppearance === 'bloody' && '血性'}
+                    {latestDialysis.dialysateAppearance === 'other' && '其他'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">體重</span>
+                  <span className="text-sm font-medium text-gray-800">
+                    {latestDialysis.weight} kg
                   </span>
                 </div>
               </>
@@ -135,55 +142,48 @@ const PatientSummary: React.FC<PatientSummaryProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">完成狀態</span>
-              <span className={`text-sm font-medium ${completedToday.vitals ? 'text-green-600' : 'text-amber-600'}`}>
-                {completedToday.vitals ? '已完成' : '未完成'}
+              <span className={`text-sm font-medium ${completedToday.vitalsign ? 'text-green-600' : 'text-amber-600'}`}>
+                {completedToday.vitalsign ? '已完成' : '未完成'}
               </span>
             </div>
             
-            {latestVitals && (
+            {latestVitalsign && (
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">最新紀錄日期</span>
                   <span className="text-sm font-medium text-gray-800">
-                    {formatDate(latestVitals.date)}
+                    {formatDate(latestVitalsign.recordDate)}
                   </span>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">血壓</span>
                   <span className={`text-sm font-medium ${
-                    (latestVitals.systolicBP > 140 || latestVitals.systolicBP < 90 || 
-                     latestVitals.diastolicBP > 90 || latestVitals.diastolicBP < 60) 
+                    (latestVitalsign.systolicBP > 140 || latestVitalsign.systolicBP < 90 || 
+                     latestVitalsign.diastolicBP > 90 || latestVitalsign.diastolicBP < 60) 
                       ? 'text-red-600' 
                       : 'text-gray-800'
                   }`}>
-                    {latestVitals.systolicBP}/{latestVitals.diastolicBP} mmHg
+                    {latestVitalsign.systolicBP}/{latestVitalsign.diastolicBP} mmHg
                   </span>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">體重</span>
-                  <span className="text-sm font-medium text-gray-800">
-                    {latestVitals.weight} kg
-                  </span>
-                </div>
-                
-                {latestVitals.bloodSugar && (
+                {latestVitalsign.bloodGlucose && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">血糖</span>
                     <span className={`text-sm font-medium ${
-                      (latestVitals.bloodSugar > 180 || latestVitals.bloodSugar < 70) 
+                      (latestVitalsign.bloodGlucose > 180 || latestVitalsign.bloodGlucose < 70) 
                         ? 'text-red-600' 
                         : 'text-gray-800'
                     }`}>
-                      {latestVitals.bloodSugar} mg/dL
+                      {latestVitalsign.bloodGlucose} mg/dL
                     </span>
                   </div>
                 )}
               </>
             )}
             
-            {!latestVitals && (
+            {!latestVitalsign && (
               <div className="text-sm text-gray-500 italic">無生命徵象紀錄</div>
             )}
           </div>
@@ -198,29 +198,29 @@ const PatientSummary: React.FC<PatientSummaryProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">完成狀態</span>
-              <span className={`text-sm font-medium ${completedToday.exitSiteCare ? 'text-green-600' : 'text-amber-600'}`}>
-                {completedToday.exitSiteCare ? '已完成' : '未完成'}
+              <span className={`text-sm font-medium ${completedToday.exitsiteCare ? 'text-green-600' : 'text-amber-600'}`}>
+                {completedToday.exitsiteCare ? '已完成' : '未完成'}
               </span>
             </div>
             
-            {latestExitSiteCare && (
+            {latestExitsiteCare && (
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">最新紀錄日期</span>
                   <span className="text-sm font-medium text-gray-800">
-                    {formatDate(latestExitSiteCare.date)}
+                    {formatDate(latestExitsiteCare.recordDate)}
                   </span>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">出口狀況</span>
                   <span className={`text-sm font-medium ${
-                    latestExitSiteCare.appearance !== 'normal' ? 'text-red-600' : 'text-gray-800'
+                    latestExitsiteCare.exitsiteAppearance !== 'normal' ? 'text-red-600' : 'text-gray-800'
                   }`}>
-                    {latestExitSiteCare.appearance === 'normal' && '正常'}
-                    {latestExitSiteCare.appearance === 'red' && '發紅'}
-                    {latestExitSiteCare.appearance === 'swollen' && '腫脹'}
-                    {latestExitSiteCare.appearance === 'discharge' && '有分泌物'}
+                    {latestExitsiteCare.exitsiteAppearance === 'normal' && '正常'}
+                    {latestExitsiteCare.exitsiteAppearance === 'red' && '發紅'}
+                    {latestExitsiteCare.exitsiteAppearance === 'swollen' && '腫脹'}
+                    {latestExitsiteCare.exitsiteAppearance === 'discharge' && '有分泌物'}
                   </span>
                 </div>
               </>
@@ -242,9 +242,9 @@ const PatientSummary: React.FC<PatientSummaryProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-gray-800">今日待辦事項</h3>
           <span className="text-sm text-gray-500">
-            {(isDialysisCompleted && completedToday.vitals && completedToday.exitSiteCare)
+            {(isDialysisCompleted && completedToday.vitalsign && completedToday.exitsiteCare)
               ? '全部完成' 
-              : `完成 ${[isDialysisCompleted, completedToday.vitals, completedToday.exitSiteCare].filter(Boolean).length}/3`}
+              : `完成 ${[isDialysisCompleted, completedToday.vitalsign, completedToday.exitsiteCare].filter(Boolean).length}/3`}
           </span>
         </div>
         
@@ -265,44 +265,44 @@ const PatientSummary: React.FC<PatientSummaryProps> = ({
               <span className={`text-sm ${isDialysisCompleted ? 'text-green-800 line-through' : 'text-amber-800'}`}>
                 紀錄今日透析狀況
               </span>
-              {dialysisPrescription && (
+              {dialysisSettings && (
                 <span className="block text-xs text-gray-500">
-                  目標：每日 {dialysisPrescription.exchangesPerDay} 次，每次 {dialysisPrescription.volumePerExchange} ml
+                  目標：每日 {dialysisSettings.exchangeTimesPerday} 次，每次 {dialysisSettings.exchangeVolumnePertime} ml
                 </span>
               )}
             </div>
           </div>
           
           <div className={`flex items-center rounded-md p-2 ${
-            completedToday.vitals ? 'bg-green-50' : 'bg-amber-50'
+            completedToday.vitalsign ? 'bg-green-50' : 'bg-amber-50'
           }`}>
             <div className={`rounded-full w-5 h-5 flex items-center justify-center mr-3 ${
-              completedToday.vitals ? 'bg-green-500 text-white' : 'border border-amber-500'
+              completedToday.vitalsign ? 'bg-green-500 text-white' : 'border border-amber-500'
             }`}>
-              {completedToday.vitals && (
+              {completedToday.vitalsign && (
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               )}
             </div>
-            <span className={`text-sm ${completedToday.vitals ? 'text-green-800 line-through' : 'text-amber-800'}`}>
+            <span className={`text-sm ${completedToday.vitalsign ? 'text-green-800 line-through' : 'text-amber-800'}`}>
               紀錄今日生命徵象
             </span>
           </div>
 
           <div className={`flex items-center rounded-md p-2 ${
-            completedToday.exitSiteCare ? 'bg-green-50' : 'bg-amber-50'
+            completedToday.exitsiteCare ? 'bg-green-50' : 'bg-amber-50'
           }`}>
             <div className={`rounded-full w-5 h-5 flex items-center justify-center mr-3 ${
-              completedToday.exitSiteCare ? 'bg-green-500 text-white' : 'border border-amber-500'
+              completedToday.exitsiteCare ? 'bg-green-500 text-white' : 'border border-amber-500'
             }`}>
-              {completedToday.exitSiteCare && (
+              {completedToday.exitsiteCare && (
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               )}
             </div>
-            <span className={`text-sm ${completedToday.exitSiteCare ? 'text-green-800 line-through' : 'text-amber-800'}`}>
+            <span className={`text-sm ${completedToday.exitsiteCare ? 'text-green-800 line-through' : 'text-amber-800'}`}>
               檢查導管出口狀況
             </span>
           </div>

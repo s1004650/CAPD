@@ -24,22 +24,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const patientLinks = [
     { name: '首頁', path: '/dashboard', icon: <Home size={20} /> },
     { name: '透析紀錄', path: '/dialysis-records', icon: <FileText size={20} /> },
-    { name: '生命徵象', path: '/vitals', icon: <Activity size={20} /> },
-    { name: '出口照護', path: '/exit-site-care', icon: <Microscope size={20} /> },
+    { name: '生命徵象', path: '/vitalsign-records', icon: <Activity size={20} /> },
+    { name: '出口照護', path: '/exitsite-care-records', icon: <Microscope size={20} /> },
     { name: '訊息通知', path: '/messages', icon: <MessageSquare size={20} /> },
     { name: '個人設定', path: '/settings', icon: <Settings size={20} /> },
   ];
 
-  const caseManagerLinks = [
+  const adminLinks = [
     { name: '監控總覽', path: '/admin-dashboard', icon: <Home size={20} /> },
-    { name: '病患管理', path: '/patients', icon: <Users size={20} /> },
+    { name: '病人管理', path: '/patients', icon: <Users size={20} /> },
     { name: '數據分析', path: '/analytics', icon: <BarChart2 size={20} /> },
-    { name: '異常警示', path: '/alerts', icon: <AlertTriangle size={20} /> },
+    { name: '異常警示', path: '/alert-records', icon: <AlertTriangle size={20} /> },
     { name: '訊息通知', path: '/messages', icon: <MessageSquare size={20} /> },
     { name: '系統設定', path: '/settings', icon: <Settings size={20} /> },
   ];
 
-  const links = user?.role === UserRole.PATIENT ? patientLinks : caseManagerLinks;
+  const links = user?.role === UserRole.PATIENT ? patientLinks : adminLinks;
 
   return (
     <aside 

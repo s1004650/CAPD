@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, UserRole } from '../types';
+import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -10,34 +10,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// 模擬使用者資料 (真實應用中會從API獲取)
-const MOCK_USERS = [
-  {
-    id: '1',
-    role: UserRole.PATIENT,
-    name: '王小明',
-    nationalId: 'A123456789',
-    phone: '0912345678',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    role: UserRole.CASE_MANAGER,
-    name: '林醫師',
-    nationalId: 'H123456789',
-    phone: '0923456789',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    role: UserRole.CASE_MANAGER,
-    name: '宋宜靜',
-    nationalId: 'T223607480',
-    phone: '0912345678',
-    createdAt: new Date().toISOString(),
-  },
-];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -52,21 +24,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (nationalId: string, password: string) => {
+  const login = async (lineUserId: string, password: string) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const foundUser = MOCK_USERS.find(u => u.nationalId === nationalId);
-      
-      if (foundUser && (password === '123456' || (nationalId === 'T223607480' && password === '0761011'))) {
-        setUser(foundUser);
-        localStorage.setItem('user', JSON.stringify(foundUser));
-      } else {
-        throw new Error('身分證字號或密碼錯誤');
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lineUserId: lineUserId,
+          password: password,
+        }),
+      })
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || '登入失敗');
       }
+
+      const user: User = {
+        id: data.user.id,
+        lineUserId: data.user.lineUserId,
+        lineDisplayName: data.user.lineDisplayName,
+        fullName: data.user.fullName,
+        caseNumber: data.user.caseNumber,
+        gender: data.user.gender,
+        birthdate: data.user.birthdate,
+        role: data.user.role,
+        dialysisStartDate: data.user.dialysisStartDate,
+        createdAt: data.user.createdAt,
+        updatedAt: data.user.updatedAt,
+        deletedAt: data.user.deletedAt,
+      };
+
+      setUser(user);
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('token', data.token);
+
     } catch (err: any) {
       setError(err.message);
       throw err;

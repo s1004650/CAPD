@@ -1,54 +1,56 @@
-import React, { useState } from 'react';
-import { useData } from '../contexts/DataContext';
-import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/layout/Layout';
+import React, { useState, useEffect } from 'react';
 import { MessageSquare, Send, Search } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
+import Layout from '../components/layout/Layout';
 import { UserRole } from '../types';
+import { stringToDateTime } from '../types/utils';
 
 const Messages: React.FC = () => {
-  const { messages, patients, addMessage } = useData();
   const { user } = useAuth();
+  const { patients, fetchPatients, messages, addMessage, fetchMessages } = useData();
   const [messageContent, setMessageContent] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await Promise.all([
+          fetchPatients(),
+          fetchMessages(),
+        ]);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const sortedMessages = messages.sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  const filteredPatients = patients.filter(patient =>
+    patient.fullName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getMessagesByPatient = (patientId: string) => {
-    return sortedMessages.filter(message => 
-      message.senderId === patientId || message.receiverId === patientId
-    );
+    return messages
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .filter(message => message.senderId === patientId || message.receiverId === patientId);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('zh-TW', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
-  };
+  const displayedMessages = selectedPatient
+    ? getMessagesByPatient(selectedPatient ?? '') : getMessagesByPatient(user?.id ?? '');
 
   const handleSendMessage = async () => {
     if (!messageContent.trim() || !user) return;
-    
+
     try {
       await addMessage({
-        senderId: user.id,
         receiverId: selectedPatient,
         content: messageContent,
         isRead: false,
       });
-      
       setMessageContent('');
+      await fetchMessages();
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -59,14 +61,14 @@ const Messages: React.FC = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">訊息通知</h1>
         <p className="text-gray-600">
-          {user?.role === UserRole.CASE_MANAGER 
-            ? '與病患的訊息往來記錄' 
+          {user?.role === UserRole.ADMIN 
+            ? '與病人的訊息往來記錄' 
             : '與個案管理師的訊息往來記錄'}
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {user?.role === UserRole.CASE_MANAGER && (
+        {user?.role === UserRole.ADMIN && (
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm">
               <div className="p-4 border-b border-gray-200">
@@ -74,7 +76,7 @@ const Messages: React.FC = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   <input
                     type="text"
-                    placeholder="搜尋病患..."
+                    placeholder="搜尋病人..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
@@ -92,7 +94,7 @@ const Messages: React.FC = () => {
                   >
                     <div className="flex items-center">
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{patient.name}</p>
+                        <p className="font-medium text-gray-900">{patient.fullName}</p>
                         <p className="text-sm text-gray-500">
                           {getMessagesByPatient(patient.id).length} 則對話
                         </p>
@@ -110,13 +112,13 @@ const Messages: React.FC = () => {
           </div>
         )}
 
-        <div className={user?.role === UserRole.CASE_MANAGER ? 'lg:col-span-2' : 'lg:col-span-3'}>
+        <div className={user?.role === UserRole.ADMIN ? 'lg:col-span-2' : 'lg:col-span-3'}>
           <div className="bg-white rounded-lg shadow-sm">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-900">訊息記錄</h2>
             </div>
             <div className="divide-y divide-gray-200">
-              {messages.length === 0 ? (
+              {displayedMessages.length === 0 ? (
                 <div className="p-6 text-center">
                   <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">沒有訊息</h3>
@@ -124,7 +126,7 @@ const Messages: React.FC = () => {
                 </div>
               ) : (
                 <div className="p-6 space-y-6">
-                  {sortedMessages.map((message) => {
+                  {displayedMessages.map((message) => {
                     const isCurrentUserSender = message.senderId === user?.id;
                     return (
                       <div
@@ -140,7 +142,7 @@ const Messages: React.FC = () => {
                         >
                           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                           <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                            <span>{formatDate(message.createdAt)}</span>
+                            <span>{stringToDateTime(message.createdAt)}</span>
                             {!message.isRead && !isCurrentUserSender && (
                               <span className="ml-2 text-blue-600">未讀</span>
                             )}
@@ -152,7 +154,7 @@ const Messages: React.FC = () => {
                 </div>
               )}
             </div>
-            {user?.role === UserRole.CASE_MANAGER && selectedPatient && (
+            {((user?.role === UserRole.ADMIN && selectedPatient) || user?.role === UserRole.PATIENT) && (
               <div className="p-4 border-t border-gray-200">
                 <div className="flex space-x-4">
                   <input

@@ -1,23 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Check } from 'lucide-react';
-import Layout from '../components/layout/Layout';
-import VitalsRecordForm from '../components/forms/VitalsRecordForm';
+import { /*ChevronLeft, */Check } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
-import { VitalsRecord } from '../types';
+import Layout from '../components/layout/Layout';
+import VitalsignRecordForm from '../components/forms/VitalsignRecordForm';
+import { VitalsignRecordInput } from '../types';
 
-const VitalsRecordPage: React.FC = () => {
-  const { vitalsRecords, addVitalsRecord, isLoading } = useData();
+const VitalsignRecordPage: React.FC = () => {
+  const { vitalsignRecords, addVitalsignRecord, isLoading } = useData();
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-
-  const lastRecord = vitalsRecords.length > 0 
-    ? vitalsRecords[0] 
+  
+  const lastRecord = vitalsignRecords.length > 0 
+    ? vitalsignRecords[0] 
     : undefined;
 
-  const handleSubmit = async (data: Omit<VitalsRecord, 'id' | 'patientId' | 'createdAt'>) => {
+  const handleSubmit = async (data: VitalsignRecordInput) => {
     try {
-      await addVitalsRecord(data);
+      await addVitalsignRecord(data);
       setSuccess(true);
       
       // 3秒後自動導回儀表板
@@ -31,15 +31,15 @@ const VitalsRecordPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="mb-6">
+      {/* <div className="mb-6">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/dashboard')}
           className="inline-flex items-center text-blue-600 hover:text-blue-800"
         >
           <ChevronLeft size={20} />
           <span>返回</span>
         </button>
-      </div>
+      </div> */}
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">生命徵象紀錄</h1>
@@ -62,7 +62,7 @@ const VitalsRecordPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        <VitalsRecordForm 
+        <VitalsignRecordForm 
           onSubmit={handleSubmit} 
           lastRecord={lastRecord}
           isLoading={isLoading}
@@ -72,4 +72,4 @@ const VitalsRecordPage: React.FC = () => {
   );
 };
 
-export default VitalsRecordPage;
+export default VitalsignRecordPage;

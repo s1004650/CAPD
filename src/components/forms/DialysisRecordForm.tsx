@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
-import { PlusCircle, MinusCircle, Save, RefreshCw, Camera, X } from 'lucide-react';
-import { DialysisRecord } from '../../types';
+import React, { useState/*, useRef*/ } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PlusCircle, MinusCircle, Save, RefreshCw/*, Camera, X*/ } from 'lucide-react';
+import { DialysisRecord, DialysisRecordInput } from '../../types';
 
 interface DialysisRecordFormProps {
-  onSubmit: (data: Omit<DialysisRecord, 'id' | 'patientId' | 'createdAt'>) => void;
-  lastRecord?: Omit<DialysisRecord, 'id' | 'patientId' | 'createdAt'>;
+  onSubmit: (data: DialysisRecordInput) => void;
+  lastRecord?: Omit<DialysisRecord, 'id' >;
   isLoading?: boolean;
 }
 
@@ -23,10 +24,10 @@ const SYMPTOMS = [
 ];
 
 const CONCENTRATIONS = [
-  { value: '1.5%', label: '1.5%' },
-  { value: '2.5%', label: '2.5%' },
-  { value: '4.25%', label: '4.25%' },
-  { value: '7.5%', label: '7.5% 愛多尼爾' },
+  { value: 1.5, label: '1.5%' },
+  { value: 2.5, label: '2.5%' },
+  { value: 4.25, label: '4.25%' },
+  { value: 7.5, label: '7.5% 愛多尼爾' },
 ];
 
 const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
@@ -34,65 +35,68 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
   lastRecord,
   isLoading = false,
 }) => {
+  const navigate = useNavigate();
+
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toTimeString().slice(0, 5);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [date, setDate] = useState<string>(today);
   const [time, setTime] = useState<string>(now);
-  const [inflowVolume, setInflowVolume] = useState<number>(2000);
-  const [outflowVolume, setOutflowVolume] = useState<number>(2000);
-  const [concentration, setConcentration] = useState<string>('1.5%');
-  const [appearance, setAppearance] = useState<'clear' | 'cloudy' | 'bloody' | 'other'>('clear');
-  const [hasAbdominalPain, setHasAbdominalPain] = useState<boolean>(false);
-  const [painLevel, setPainLevel] = useState<number>(0);
-  const [symptoms, setSymptoms] = useState<string[]>([]);
+  const [infusedVolume, setInfusedVolume] = useState<number>(2000);
+  const [drainedVolume, setDrainedVolume] = useState<number>(2000);
+  const [dialysateGlucose, setDialysateGlucose] = useState<number>(1.5);
+  const [dialysateAppearance, setDialysateAppearance] = useState<'clear' | 'cloudy' | 'bloody' | 'other'>('clear');
+  const [abdominalPain, setAbdominalPain] = useState<boolean>(false);
+  const [abdominalPainScore, setAbdominalPainScore] = useState<number>(0);
+  const [otherSymptoms, setOtherSymptoms] = useState<string[]>([]);
   const [weight, setWeight] = useState<number>(60);
-  const [notes, setNotes] = useState<string>('');
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [note, setNote] = useState<string>('');
+  // const [photos, setPhotos] = useState<string[]>([]);
+  
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
     onSubmit({
-      date,
-      time,
-      inflowVolume,
-      outflowVolume,
-      concentration,
-      appearance,
-      hasAbdominalPain,
-      painLevel: hasAbdominalPain ? painLevel : undefined,
-      symptoms,
+      recordDate: `${date}T${time}:00`,
+      infusedVolume,
+      drainedVolume,
+      dialysateGlucose,
       weight,
-      notes,
-      photos,
+      dialysateAppearance,
+      abdominalPain,
+      abdominalPainScore: abdominalPain ? abdominalPainScore : undefined,
+      otherSymptoms,
+      note,
+      // photos,
     });
   };
 
   const useLastRecord = () => {
     if (lastRecord) {
       setTime(now);
-      setInflowVolume(lastRecord.inflowVolume);
-      setOutflowVolume(lastRecord.outflowVolume);
-      setConcentration(lastRecord.concentration || '1.5%');
-      setAppearance(lastRecord.appearance);
-      setHasAbdominalPain(lastRecord.hasAbdominalPain);
-      setPainLevel(lastRecord.painLevel || 0);
-      setSymptoms(lastRecord.symptoms || []);
+      setInfusedVolume(lastRecord.infusedVolume);
+      setDrainedVolume(lastRecord.drainedVolume);
+      setDialysateGlucose(lastRecord.dialysateGlucose || 1.5);
       setWeight(lastRecord.weight || 60);
-      setNotes(lastRecord.notes || '');
+      setDialysateAppearance(lastRecord.dialysateAppearance);
+      setAbdominalPain(lastRecord.abdominalPain);
+      setAbdominalPainScore(lastRecord.abdominalPainScore || 0);
+      setOtherSymptoms(lastRecord.otherSymptoms || []);
+      setNote(lastRecord.note || '');
     }
   };
 
   const toggleSymptom = (symptomId: string) => {
-    setSymptoms(prev => 
+    setOtherSymptoms(prev => 
       prev.includes(symptomId)
         ? prev.filter(id => id !== symptomId)
         : [...prev, symptomId]
     );
   };
 
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  /* const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
       Array.from(files).forEach(file => {
@@ -107,10 +111,10 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
 
   const removePhoto = (index: number) => {
     setPhotos(prev => prev.filter((_, i) => i !== index));
-  };
+  }; */
 
   const adjustVolume = (type: 'inflow' | 'outflow', increment: boolean) => {
-    const setValue = type === 'inflow' ? setInflowVolume : setOutflowVolume;
+    const setValue = type === 'inflow' ? setInfusedVolume : setDrainedVolume;
     setValue(prev => {
       const newValue = increment ? prev + 100 : prev - 100;
       return Math.max(0, newValue);
@@ -120,7 +124,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium text-gray-900">透析紀錄</h2>
+        {/* <h2 className="text-lg font-medium text-gray-900">透析紀錄</h2> */}
         {lastRecord && (
           <button
             type="button"
@@ -128,7 +132,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
             className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
           >
             <RefreshCw size={16} className="mr-1" />
-            使用上次設定
+            使用上次紀錄
           </button>
         )}
       </div>
@@ -163,7 +167,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="inflowVolume" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="infusedVolume" className="block text-sm font-medium text-gray-700">
             注入液量 (毫升)
           </label>
           <div className="mt-1 flex rounded-md shadow-sm">
@@ -176,9 +180,9 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
             </button>
             <input
               type="number"
-              id="inflowVolume"
-              value={inflowVolume}
-              onChange={(e) => setInflowVolume(Number(e.target.value))}
+              id="infusedVolume"
+              value={infusedVolume}
+              onChange={(e) => setInfusedVolume(Number(e.target.value))}
               className="block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               min="0"
               step="100"
@@ -195,7 +199,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="outflowVolume" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="drainedVolume" className="block text-sm font-medium text-gray-700">
             引流液量 (毫升)
           </label>
           <div className="mt-1 flex rounded-md shadow-sm">
@@ -208,9 +212,9 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
             </button>
             <input
               type="number"
-              id="outflowVolume"
-              value={outflowVolume}
-              onChange={(e) => setOutflowVolume(Number(e.target.value))}
+              id="drainedVolume"
+              value={drainedVolume}
+              onChange={(e) => setDrainedVolume(Number(e.target.value))}
               className="block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               min="0"
               step="100"
@@ -226,21 +230,21 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
           </div>
           <div className="mt-1 text-sm">
             <span className={`font-medium ${
-              outflowVolume - inflowVolume >= 0 ? 'text-green-600' : 'text-red-600'
+              drainedVolume - infusedVolume >= 0 ? 'text-green-600' : 'text-red-600'
             }`}>
-              脫水量: {outflowVolume - inflowVolume} mL
+              脫水量: {drainedVolume - infusedVolume} mL
             </span>
           </div>
         </div>
 
         <div>
-          <label htmlFor="concentration" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="dialysateGlucose" className="block text-sm font-medium text-gray-700">
             透析液濃度
           </label>
           <select
-            id="concentration"
-            value={concentration}
-            onChange={(e) => setConcentration(e.target.value)}
+            id="dialysateGlucose"
+            value={dialysateGlucose}
+            onChange={(e) => setDialysateGlucose(Number(e.target.value))}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
           >
@@ -270,13 +274,13 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="appearance" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="dialysateAppearance" className="block text-sm font-medium text-gray-700">
             透析液外觀
           </label>
           <select
-            id="appearance"
-            value={appearance}
-            onChange={(e) => setAppearance(e.target.value as any)}
+            id="dialysateAppearance"
+            value={dialysateAppearance}
+            onChange={(e) => setDialysateAppearance(e.target.value as any)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
           >
@@ -290,29 +294,29 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
         <div>
           <div className="flex items-center">
             <input
-              id="hasAbdominalPain"
+              id="abdominalPain"
               type="checkbox"
-              checked={hasAbdominalPain}
-              onChange={(e) => setHasAbdominalPain(e.target.checked)}
+              checked={abdominalPain}
+              onChange={(e) => setAbdominalPain(e.target.checked)}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label htmlFor="hasAbdominalPain" className="ml-2 block text-sm font-medium text-gray-700">
+            <label htmlFor="abdominalPain" className="ml-2 block text-sm font-medium text-gray-700">
               有腹痛症狀
             </label>
           </div>
 
-          {hasAbdominalPain && (
+          {abdominalPain && (
             <div className="mt-3">
               <label htmlFor="painLevel" className="block text-sm font-medium text-gray-700">
                 疼痛程度 (1-10)
               </label>
               <input
                 type="range"
-                id="painLevel"
+                id="abdominalPainScore"
                 min="1"
                 max="10"
-                value={painLevel}
-                onChange={(e) => setPainLevel(Number(e.target.value))}
+                value={abdominalPainScore}
+                onChange={(e) => setAbdominalPainScore(Number(e.target.value))}
                 className="mt-1 block w-full"
               />
               <div className="flex justify-between text-xs text-gray-500">
@@ -334,7 +338,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
                 <input
                   type="checkbox"
                   id={symptom.id}
-                  checked={symptoms.includes(symptom.id)}
+                  checked={otherSymptoms.includes(symptom.id)}
                   onChange={() => toggleSymptom(symptom.id)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
@@ -347,7 +351,7 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
         </div>
       </div>
 
-      <div>
+      {/* <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           透析液照片
         </label>
@@ -390,27 +394,27 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
         <p className="mt-2 text-sm text-gray-500">
           最多可上傳 4 張照片
         </p>
-      </div>
+      </div> */}
 
       <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="note" className="block text-sm font-medium text-gray-700">
           備註
         </label>
         <textarea
-          id="notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          id="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
           rows={3}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           placeholder="輸入其他觀察或症狀..."
         ></textarea>
       </div>
 
-      <div>
+      <div className="flex justify-front space-x-3">
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
         >
           {isLoading ? (
             <>
@@ -426,6 +430,13 @@ const DialysisRecordForm: React.FC<DialysisRecordFormProps> = ({
               儲存紀錄
             </>
           )}
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          取消
         </button>
       </div>
     </form>

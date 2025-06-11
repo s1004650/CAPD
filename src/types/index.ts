@@ -1,102 +1,138 @@
 export enum UserRole {
   PATIENT = 'patient',
-  CASE_MANAGER = 'case_manager',
-  ADMIN = 'admin'
+  ADMIN = 'admin',
 }
 
 export interface User {
   id: string;
-  role: UserRole;
-  name: string;
-  nationalId: string;
-  phone: string;
-  createdAt: string;
-}
-
-export interface Patient extends User {
-  medicalId: string;
-  birthdate: string;
-  age: number;
+  lineUserId: string;
+  lineDisplayName: string;
+  fullName: string;
+  caseNumber?: string;
   gender: 'male' | 'female';
-  dialysisStartDate: string;
-  caseManagerId: string;
+  birthdate?: string;
+  role: UserRole;
+  dialysisStartDate?: string,
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string;
+}
+export type UserInput = Omit<User, 'id' | 'lineUserId' | 'lineDisplayName' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
+
+export interface patientSummary {
+  id: string;
+  fullName: string;
+  caseNumber: string;
+  gender: string;
+  age: number;
+  dialysisStartDate: string | undefined;
+  lastRecordDate: string;
+  alertRecordsCount: number;
+  status: string;
+  lastBP: string;
+  lastWeight: number | string;
+  lastBloodGlucose: string | number;
+  /* lastDialysis: {
+    recordDate?: string;
+    infusedVolume?: number;
+    drainedVolume?: number;
+    dialysateAppearance?: string;
+  }; */
 }
 
 export interface DialysisRecord {
   id: string;
-  patientId: string;
-  date: string;
-  time: string;
-  inflowVolume: number;
-  outflowVolume: number;
-  concentration?: string;
-  appearance: 'clear' | 'cloudy' | 'bloody' | 'other';
-  hasAbdominalPain: boolean;
-  painLevel?: number;
-  symptoms: string[];
+  userId: string;
+  recordDate: string;
+  infusedVolume: number;
+  drainedVolume: number;
+  ultrafiltrationVolume: number;
+  dialysateGlucose: number;
   weight: number;
-  notes?: string;
-  photos?: string[];
+  dialysateAppearance: 'clear' | 'cloudy' | 'bloody' | 'other';
+  abdominalPain: boolean;
+  abdominalPainScore?: number;
+  otherSymptoms: string[];
+  note: string;
+  // photos?: string[];
   createdAt: string;
+  updatedAt: string;
+  deletedAt: string;
 }
+export type DialysisRecordInput = Omit<DialysisRecord, 'id' | 'userId' | 'ultrafiltrationVolume' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
 
-export interface VitalsRecord {
+export interface VitalsignRecord {
   id: string;
-  patientId: string;
-  date: string;
+  userId: string;
+  recordDate: string;
   systolicBP: number;
   diastolicBP: number;
-  weight: number;
-  bloodSugar?: number;
-  temperature?: number;
-  notes?: string;
+  temperature: number;
+  needBloodGlucose: boolean;
+  bloodGlucose?: number;
+  note: string;
   createdAt: string;
+  updatedAt: string;
+  deletedAt: string;
 }
+export type VitalsignRecordInput = Omit<VitalsignRecord, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
 
-export interface Alert {
+export interface AlertRecord {
   id: string;
-  patientId: string;
-  type: 'bp' | 'weight' | 'bloodSugar' | 'dialysis';
-  message: string;
-  date: string;
-  isResolved: boolean;
-  resolvedBy?: string;
+  userId: string;
+  userName: string;
+  recordId: string;
+  type: 'bp' | 'weight' | 'bloodGlucose' | 'dialysis';
+  content: string;
+  isResolved?: boolean;
+  resolvedId?: string;
   resolvedAt?: string;
   createdAt: string;
+  updatedAt: string;
+  deletedAt: string;
 }
+export type AlertRecordInput = Omit<AlertRecord, 'id' | 'userId' | 'userName' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
 
 export interface Message {
   id: string;
   senderId: string;
   receiverId: string;
   content: string;
-  isRead: boolean;
+  isRead?: boolean;
   createdAt: string;
-}
-
-export interface DialysisPrescription {
-  volumePerExchange: number;
-  exchangesPerDay: number;
-  concentrationTypes: string[];
-  notes?: string;
   updatedAt: string;
 }
+export type MessageInput = Omit<Message, 'id' | 'senderId' | 'createdAt' | 'updatedAt'>;
 
-export interface ExitSiteCareRecord {
+export interface DialysisSetting {
   id: string;
-  patientId: string;
-  date: string;
-  appearance: 'normal' | 'red' | 'swollen' | 'discharge';
-  hasDischarge: boolean;
-  dischargeTrait?: {
-    color: 'clear' | 'yellow' | 'green' | 'bloody';
-    amount: 'small' | 'moderate' | 'large';
-  };
-  hasPain: boolean;
-  painLevel?: number;
-  hasScab: boolean;
-  hasTunnel: boolean;
-  photos: string[];
-  notes?: string;
+  userId: string;
+  exchangeVolumnePertime: number;
+  exchangeTimesPerday: number;
+  dialysateGlucose: number;
+  note: string;
   createdAt: string;
+  updatedAt: string;
 }
+export type DialysisSettingInput = Omit<DialysisSetting, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
+
+export interface ExitsiteCareRecord {
+  id: string;
+  userId: string;
+  recordDate: string;
+  exitsiteAppearance: 'normal' | 'red' | 'swollen' | 'discharge';
+  discharge: boolean;
+  dischargeColor?: 'clear' | 'yellow' | 'green' | 'bloody';
+  dischargeAmount?: 'small' | 'moderate' | 'large';
+  pain: boolean;
+  painScore?: number;
+  scab: boolean;
+  tunnelInfection: boolean;
+  // photos: string[];
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string;
+}
+
+export type ExitsiteCareRecordInput = Omit<ExitsiteCareRecord, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'deletedAt'>;

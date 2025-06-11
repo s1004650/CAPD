@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Check } from 'lucide-react';
+import { /*ChevronLeft, */Check } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 import Layout from '../components/layout/Layout';
 import DialysisRecordForm from '../components/forms/DialysisRecordForm';
-import { useData } from '../contexts/DataContext';
-import { DialysisRecord } from '../types';
+import { DialysisRecordInput } from '../types';
 
 const DialysisRecordPage: React.FC = () => {
   const { dialysisRecords, addDialysisRecord, isLoading } = useData();
@@ -15,7 +15,7 @@ const DialysisRecordPage: React.FC = () => {
     ? dialysisRecords[0] 
     : undefined;
 
-  const handleSubmit = async (data: Omit<DialysisRecord, 'id' | 'patientId' | 'createdAt'>) => {
+  const handleSubmit = async (data: DialysisRecordInput) => {
     try {
       await addDialysisRecord(data);
       setSuccess(true);
@@ -31,7 +31,7 @@ const DialysisRecordPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="mb-6">
+      {/* <div className="mb-6">
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center text-blue-600 hover:text-blue-800"
@@ -39,7 +39,7 @@ const DialysisRecordPage: React.FC = () => {
           <ChevronLeft size={20} />
           <span>返回</span>
         </button>
-      </div>
+      </div> */}
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">透析紀錄</h1>

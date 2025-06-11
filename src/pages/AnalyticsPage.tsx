@@ -59,7 +59,7 @@ const AnalyticsPage: React.FC = () => {
     <Layout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">數據分析</h1>
-        <p className="text-gray-600">分析並追蹤病患健康指標趨勢</p>
+        <p className="text-gray-600">分析並追蹤病人健康指標趨勢</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -69,7 +69,7 @@ const AnalyticsPage: React.FC = () => {
               <Users className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">總病患數</p>
+              <p className="text-sm text-gray-500">總病人數</p>
               <p className="text-2xl font-semibold text-gray-900">
                 {MOCK_ANALYTICS.overview.totalPatients}
               </p>

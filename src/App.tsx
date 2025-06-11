@@ -5,12 +5,12 @@ import { DataProvider } from './contexts/DataContext';
 import Login from './pages/Login';
 import PatientDashboard from './pages/PatientDashboard';
 import DialysisRecordPage from './pages/DialysisRecordPage';
-import VitalsRecordPage from './pages/VitalsRecordPage';
+import VitalsignRecordPage from './pages/VitalsignRecordPage';
 import ExitSiteCare from './pages/ExitSiteCare';
 import AdminDashboard from './pages/AdminDashboard';
 import PatientsPage from './pages/PatientsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
-import AlertsPage from './pages/AlertsPage';
+import AlertsPage from './pages/AlertRecordPage';
 import Messages from './pages/Messages';
 import Settings from './pages/Settings';
 import { UserRole } from './types';
@@ -48,7 +48,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             
-            {/* 病患路由 */}
+            {/* 病人路由 */}
             <Route 
               path="/dashboard" 
               element={
@@ -66,15 +66,15 @@ function App() {
               } 
             />
             <Route 
-              path="/vitals" 
+              path="/vitalsign-records" 
               element={
                 <ProtectedRoute allowedRoles={[UserRole.PATIENT]}>
-                  <VitalsRecordPage />
+                  <VitalsignRecordPage />
                 </ProtectedRoute>
               } 
             />
             <Route 
-              path="/exit-site-care" 
+              path="/exitsite-care-records" 
               element={
                 <ProtectedRoute allowedRoles={[UserRole.PATIENT]}>
                   <ExitSiteCare />
@@ -86,7 +86,7 @@ function App() {
             <Route 
               path="/admin-dashboard" 
               element={
-                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                   <AdminDashboard />
                 </ProtectedRoute>
               } 
@@ -94,7 +94,7 @@ function App() {
             <Route 
               path="/patients" 
               element={
-                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                   <PatientsPage />
                 </ProtectedRoute>
               } 
@@ -102,15 +102,15 @@ function App() {
             <Route 
               path="/analytics" 
               element={
-                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                   <AnalyticsPage />
                 </ProtectedRoute>
               } 
             />
             <Route 
-              path="/alerts" 
+              path="/alert-records" 
               element={
-                <ProtectedRoute allowedRoles={[UserRole.CASE_MANAGER]}>
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                   <AlertsPage />
                 </ProtectedRoute>
               } 

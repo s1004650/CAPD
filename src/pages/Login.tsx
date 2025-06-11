@@ -1,28 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserCircle, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserRole } from '../types';
 
 const Login: React.FC = () => {
-  const [nationalId, setNationalId] = useState('');
+  const [lineUserId, setLineUserId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const { login, isLoading } = useAuth();
+  const { user, login, isLoading } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    
     try {
-      await login(nationalId, password);
-      const isAdmin = nationalId === 'H123456789';
-      navigate(isAdmin ? '/admin-dashboard' : '/dashboard');
+      await login(lineUserId, password);
     } catch (err: any) {
-      setError('身分證字號或密碼錯誤，請重新輸入');
+      setError('身分證字號或密碼錯誤，請重新輸入' + err.message);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      const target = user.role === 'admin' ? '/admin-dashboard' : '/dashboard';
+      navigate(target);
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-blue-50">
@@ -40,8 +43,8 @@ const Login: React.FC = () => {
         
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label htmlFor="nationalId" className="block text-sm font-medium text-gray-700 mb-1">
-              身分證字號
+            <label htmlFor="lineUserId" className="block text-sm font-medium text-gray-700 mb-1">
+              帳號
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -49,18 +52,16 @@ const Login: React.FC = () => {
               </div>
               <input
                 type="text"
-                id="nationalId"
-                value={nationalId}
-                onChange={(e) => setNationalId(e.target.value.toUpperCase())}
-                placeholder="請輸入您的身分證字號"
+                id="lineUserId"
+                value={lineUserId}
+                onChange={(e) => setLineUserId(e.target.value)}
+                placeholder="請輸入您的帳號"
                 className="block w-full pl-10 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                pattern="^[A-Z][12]\d{8}$"
-                maxLength={10}
                 required
               />
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              示範用帳號：A123456789（病患）或 H123456789（個管師）
+              測試帳號：test(病人) 或 admin(個管師)
             </p>
           </div>
           
@@ -83,7 +84,7 @@ const Login: React.FC = () => {
               />
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              示範用密碼：123456
+              測試密碼：123456
             </p>
           </div>
           

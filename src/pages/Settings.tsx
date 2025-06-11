@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
 import { Bell, Moon, Sun, Volume2, Save, Beaker } from 'lucide-react';
-import { DialysisPrescription } from '../types';
+import { UserRole, DialysisSettingInput } from '../types';
+
+const CONCENTRATIONS = [
+  { value: 1.5, label: '1.5%' },
+  { value: 2.5, label: '2.5%' },
+  { value: 4.25, label: '4.25%' },
+  { value: 7.5, label: '7.5% 愛多尼爾' },
+];
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
+  const { dialysisSettings, udpateDialysisSetting, fetchDialysisSettings } = useData();
   const [notifications, setNotifications] = useState({
     dailyReminder: true,
     abnormalAlert: true,
@@ -14,14 +23,35 @@ const Settings: React.FC = () => {
   });
   const [theme, setTheme] = useState('light');
   const [fontSize, setFontSize] = useState('medium');
-  
-  // 透析處方設定
-  const [prescription, setPrescription] = useState<DialysisPrescription>({
-    volumePerExchange: 2000,
-    exchangesPerDay: 4,
-    concentrationTypes: ['1.5%'],
-    updatedAt: new Date().toISOString(),
+  const [prescription, setPrescription] = useState<DialysisSettingInput>({
+    exchangeVolumnePertime: 2000,
+    exchangeTimesPerday: 4,
+    dialysateGlucose: 1.5,
+    note: '',
   });
+
+  useEffect(() => {
+    if (user) {
+      const fetchData = async (userId: string) => {
+        try {
+          await fetchDialysisSettings(userId);
+          if (dialysisSettings && dialysisSettings.length > 0) {
+            setPrescription({
+              exchangeVolumnePertime: dialysisSettings[0].exchangeVolumnePertime,
+              exchangeTimesPerday: dialysisSettings[0].exchangeTimesPerday,
+              dialysateGlucose: dialysisSettings[0].dialysateGlucose,
+              note: dialysisSettings[0].note,
+            });
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      };
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.setAttribute('data-font-size', fontSize);
+      fetchData(user.id);
+    }
+  }, [user, theme, fontSize]);
 
   const handleNotificationChange = (key: keyof typeof notifications) => {
     setNotifications(prev => ({
@@ -30,9 +60,19 @@ const Settings: React.FC = () => {
     }));
   };
 
-  const handleSavePrescription = () => {
-    // 在實際應用中，這裡會調用API儲存透析處方設定
-    alert('透析處方設定已更新');
+  const handleSavePrescription = async () => {
+    if (!user) return;
+
+    try {
+      await udpateDialysisSetting(dialysisSettings[0].id, {
+        exchangeVolumnePertime: prescription.exchangeVolumnePertime,
+        exchangeTimesPerday: prescription.exchangeTimesPerday,
+        dialysateGlucose: prescription.dialysateGlucose,
+        note: prescription.note,
+      });
+    } catch (error) {
+      console.error('Error saving record:', error);
+    }
   };
 
   return (
@@ -43,7 +83,7 @@ const Settings: React.FC = () => {
       </div>
 
       <div className="space-y-6">
-        {user?.role === 'patient' && (
+        {user?.role === UserRole.PATIENT && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center mb-4">
               <Beaker className="h-5 w-5 text-blue-500 mr-2" />
@@ -54,14 +94,10 @@ const Settings: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700">每次交換量 (mL)</label>
                 <input
                   type="number"
-                  value={prescription.volumePerExchange}
-                  onChange={(e) => setPrescription(prev => ({
-                    ...prev,
-                    volumePerExchange: Number(e.target.value)
-                  }))}
+                  value={prescription.exchangeVolumnePertime}
+                  onChange={(e) => setPrescription(prev => ({ ...prev, exchangeVolumnePertime: Number(e.target.value) }))}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  min="500"
-                  max="3000"
+                  min="0"
                   step="100"
                 />
               </div>
@@ -70,11 +106,8 @@ const Settings: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700">每日交換次數</label>
                 <input
                   type="number"
-                  value={prescription.exchangesPerDay}
-                  onChange={(e) => setPrescription(prev => ({
-                    ...prev,
-                    exchangesPerDay: Number(e.target.value)
-                  }))}
+                  value={prescription.exchangeTimesPerday}
+                  onChange={(e) => setPrescription(prev => ({ ...prev, exchangeTimesPerday: Number(e.target.value) }))}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   min="1"
                   max="6"
@@ -83,48 +116,30 @@ const Settings: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">透析液濃度</label>
-                <div className="space-x-2">
-                  {['1.5%', '2.5%', '4.25%', '7.5% 愛多尼爾'].map((concentration) => (
-                    <label key={concentration} className="inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={prescription.concentrationTypes.includes(concentration)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setPrescription(prev => ({
-                              ...prev,
-                              concentrationTypes: [...prev.concentrationTypes, concentration]
-                            }));
-                          } else {
-                            setPrescription(prev => ({
-                              ...prev,
-                              concentrationTypes: prev.concentrationTypes.filter(c => c !== concentration)
-                            }));
-                          }
-                        }}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <span className="ml-2 mr-4 text-sm text-gray-700">{concentration}</span>
-                    </label>
+                <select
+                  value={prescription.dialysateGlucose}
+                  onChange={(e) => setPrescription(prev => ({ ...prev, dialysateGlucose: Number(e.target.value) }))}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                  {CONCENTRATIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">備註</label>
                 <textarea
-                  value={prescription.notes || ''}
-                  onChange={(e) => setPrescription(prev => ({
-                    ...prev,
-                    notes: e.target.value
-                  }))}
+                  value={prescription.note}
+                  onChange={(e) => setPrescription(prev => ({ ...prev, note: e.target.value }))}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   rows={3}
                   placeholder="輸入其他透析相關注意事項..."
                 />
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-front">
                 <button
                   onClick={handleSavePrescription}
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -264,7 +279,7 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-front">
           <button
             type="button"
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

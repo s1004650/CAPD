@@ -1,71 +1,39 @@
-import React, { useState } from 'react';
-import { AlertTriangle, Filter, Check, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, /* Filter, */Check/*, X*/ } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 import Layout from '../components/layout/Layout';
-
-// 模擬警示資料
-const MOCK_ALERTS = [
-  {
-    id: '1',
-    patientId: '1',
-    patientName: '王小明',
-    type: 'bp',
-    message: '收縮壓超過 140 mmHg (目前: 145 mmHg)',
-    severity: 'warning',
-    date: '2024-03-20T09:30:00Z',
-    isResolved: false,
-  },
-  {
-    id: '2',
-    patientId: '2',
-    patientName: '李小華',
-    type: 'weight',
-    message: '體重在3天內增加超過2kg (增加: 2.5kg)',
-    severity: 'critical',
-    date: '2024-03-20T10:15:00Z',
-    isResolved: false,
-  },
-  {
-    id: '3',
-    patientId: '3',
-    patientName: '張大成',
-    type: 'dialysis',
-    message: '透析液混濁，可能有感染風險',
-    severity: 'critical',
-    date: '2024-03-20T11:00:00Z',
-    isResolved: false,
-  },
-  {
-    id: '4',
-    patientId: '1',
-    patientName: '王小明',
-    type: 'bloodSugar',
-    message: '血糖值過高 (目前: 185 mg/dL)',
-    severity: 'warning',
-    date: '2024-03-19T15:30:00Z',
-    isResolved: true,
-    resolvedAt: '2024-03-19T16:45:00Z',
-    resolvedBy: '林醫師',
-  },
-];
+import { stringToDateTime } from '../types/utils';
 
 const AlertsPage: React.FC = () => {
+  const { alertRecords, fetchAlertRecords } = useData();
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'resolved'>('all');
-  const [severityFilter, setSeverityFilter] = useState<'all' | 'warning' | 'critical'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'bp' | 'weight' | 'dialysis' | 'bloodSugar'>('all');
+  // const [severityFilter, setSeverityFilter] = useState<'all' | 'warning' | 'critical'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'bp' | 'weight' | 'dialysis' | 'bloodGlucose'>('all');
 
-  const filteredAlerts = MOCK_ALERTS.filter(alert => {
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await fetchAlertRecords();
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchData();
+  }, []);
+  
+  const filteredAlerts = alertRecords.filter(alert => {
     const matchesStatus = 
       statusFilter === 'all' || 
       (statusFilter === 'active' && !alert.isResolved) ||
       (statusFilter === 'resolved' && alert.isResolved);
 
-    const matchesSeverity =
-      severityFilter === 'all' || alert.severity === severityFilter;
+    /* const matchesSeverity =
+      severityFilter === 'all' || alert.severity === severityFilter; */
 
     const matchesType =
       typeFilter === 'all' || alert.type === typeFilter;
 
-    return matchesStatus && matchesSeverity && matchesType;
+    return matchesStatus/* && matchesSeverity*/ && matchesType;
   });
 
   const getTypeText = (type: string) => {
@@ -76,7 +44,7 @@ const AlertsPage: React.FC = () => {
         return '體重異常';
       case 'dialysis':
         return '透析異常';
-      case 'bloodSugar':
+      case 'bloodGlucose':
         return '血糖異常';
       default:
         return '其他異常';
@@ -91,14 +59,14 @@ const AlertsPage: React.FC = () => {
         return 'bg-yellow-100 text-yellow-800';
       case 'dialysis':
         return 'bg-purple-100 text-purple-800';
-      case 'bloodSugar':
+      case 'bloodGlucose':
         return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getSeverityColor = (severity: string) => {
+  /* const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical':
         return 'bg-red-100 text-red-800';
@@ -107,24 +75,13 @@ const AlertsPage: React.FC = () => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('zh-TW', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
-  };
+  }; */
 
   return (
     <Layout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">異常警示</h1>
-        <p className="text-gray-600">監控並處理病患的異常狀況</p>
+        <p className="text-gray-600">監控並處理病人的異常狀況</p>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm">
@@ -144,7 +101,7 @@ const AlertsPage: React.FC = () => {
                 </select>
               </div>
               
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">嚴重程度</label>
                 <select
                   value={severityFilter}
@@ -155,7 +112,7 @@ const AlertsPage: React.FC = () => {
                   <option value="warning">警告</option>
                   <option value="critical">緊急</option>
                 </select>
-              </div>
+              </div> */}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">異常類型</label>
@@ -168,7 +125,7 @@ const AlertsPage: React.FC = () => {
                   <option value="bp">血壓異常</option>
                   <option value="weight">體重異常</option>
                   <option value="dialysis">透析異常</option>
-                  <option value="bloodSugar">血糖異常</option>
+                  <option value="bloodGlucose">血糖異常</option>
                 </select>
               </div>
             </div>
@@ -197,25 +154,25 @@ const AlertsPage: React.FC = () => {
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(alert.type)}`}>
                           {getTypeText(alert.type)}
                         </span>
-                        <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(alert.severity)}`}>
+                        {/* <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(alert.severity)}`}>
                           {alert.severity === 'critical' ? '緊急' : '警告'}
-                        </span>
+                        </span> */}
                         <span className="ml-2 text-sm text-gray-500">
-                          {formatDate(alert.date)}
+                          {stringToDateTime(alert.createdAt)}
                         </span>
                       </div>
                       
                       <div className="flex items-center mb-2">
                         <span className="text-sm font-medium text-gray-900">
-                          {alert.patientName}
+                          {alert.userName}
                         </span>
                       </div>
                       
-                      <p className="text-sm text-gray-700">{alert.message}</p>
+                      <p className="text-sm text-gray-700">{alert.content}</p>
                       
                       {alert.isResolved && (
                         <div className="mt-2 text-sm text-gray-500">
-                          已由 {alert.resolvedBy} 處理於 {formatDate(alert.resolvedAt!)}
+                          已由 {alert.resolvedId} 處理於 {stringToDateTime(alert.resolvedAt!)}
                         </div>
                       )}
                     </div>

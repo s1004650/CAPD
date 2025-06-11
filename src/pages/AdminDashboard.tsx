@@ -1,105 +1,19 @@
-import React, { useState, useMemo } from 'react';
-import { Users, AlertTriangle, FileText, Activity, MessageSquare, Trash2, Camera } from 'lucide-react';
-import Layout from '../components/layout/Layout';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Users, AlertTriangle, FileText, Activity, MessageSquare/*, Trash2, Camera*/ } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
-import LineChart from '../components/charts/LineChart';
+import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-
-// 模擬資料 - 實際應用中會從API獲取
-const patientSummaries = [
-  {
-    id: '1',
-    name: '王小明',
-    age: 65,
-    gender: '男',
-    dialysisStartDate: '2022-03-15',
-    lastRecord: '2023-06-10',
-    status: 'normal',
-    alerts: 1,
-    lastBP: '135/85',
-    lastWeight: '65.5',
-    lastBloodSugar: '110',
-    lastDialysis: {
-      date: '2023-06-10',
-      inflowVolume: 2000,
-      outflowVolume: 2200,
-      appearance: 'clear',
-      photos: [
-        'https://images.pexels.com/photos/3938022/pexels-photo-3938022.jpeg',
-        'https://images.pexels.com/photos/3938023/pexels-photo-3938023.jpeg'
-      ]
-    },
-  },
-  {
-    id: '2',
-    name: '李小華',
-    age: 58,
-    gender: '女',
-    dialysisStartDate: '2021-11-22',
-    lastRecord: '2023-06-09',
-    status: 'warning',
-    alerts: 2,
-    lastBP: '142/90',
-    lastWeight: '52.2',
-    lastBloodSugar: '155',
-    lastDialysis: {
-      date: '2023-06-09',
-      inflowVolume: 2000,
-      outflowVolume: 1800,
-      appearance: 'cloudy',
-      photos: [
-        'https://images.pexels.com/photos/3938024/pexels-photo-3938024.jpeg'
-      ]
-    },
-  },
-  {
-    id: '3',
-    name: '張大成',
-    age: 72,
-    gender: '男',
-    dialysisStartDate: '2020-06-18',
-    lastRecord: '2023-06-05',
-    status: 'danger',
-    alerts: 3,
-    lastBP: '162/95',
-    lastWeight: '70.8',
-    lastBloodSugar: '180',
-    lastDialysis: {
-      date: '2023-06-05',
-      inflowVolume: 2000,
-      outflowVolume: 1900,
-      appearance: 'bloody',
-      photos: []
-    },
-  },
-];
-
-// 模擬紀錄資料
-const mockRecords = [
-  {
-    id: '1',
-    patientId: '1',
-    type: 'dialysis',
-    date: '2024-03-20',
-    details: '透析液清澈，無異常',
-    photos: [
-      'https://images.pexels.com/photos/3938022/pexels-photo-3938022.jpeg',
-      'https://images.pexels.com/photos/3938023/pexels-photo-3938023.jpeg'
-    ]
-  },
-  {
-    id: '2',
-    patientId: '2',
-    type: 'vitals',
-    date: '2024-03-20',
-    details: '血壓: 142/90, 體重: 52.2kg'
-  },
-];
+import Layout from '../components/layout/Layout';
+import LineChart from '../components/charts/LineChart';
+import { stringToDateTime } from '../types/utils'
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { dialysisRecords, vitalsRecords } = useData();
+  const { patientSummaries, fetchPatientSummaries, 
+    dialysisRecords, fetchDialysisRecords, deleteDialysisRecord, 
+    vitalsignRecords, fetchVitalsignRecords, deleteVitalsignRecord,
+    exitsiteCareRecords, fetchExitsiteCareRecords, deleteExitsiteCareRecord,
+    fetchAlertRecords, addMessage } = useData();
   const [filter, setFilter] = useState<'all' | 'warning' | 'danger'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
@@ -110,27 +24,82 @@ const AdminDashboard: React.FC = () => {
   const [messageContent, setMessageContent] = useState('');
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedPatientDetails, setSelectedPatientDetails] = useState<any>(null);
-  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
-  const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
+  /* const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]); */
 
-  // 計算選定病患的趨勢資料
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await Promise.all([
+          fetchPatientSummaries(),
+          fetchDialysisRecords(),
+          fetchVitalsignRecords(),
+          fetchExitsiteCareRecords(),
+          fetchAlertRecords()
+        ]);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const records = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+
+    const dialysisRecordsFormatted = dialysisRecords
+      .filter(record => record.recordDate.startsWith(today))
+      .map(record => ({
+        id: record.id,
+        userId: record.userId,
+        type: 'dialysis',
+        recordDate: stringToDateTime(record.recordDate),
+        details: `透析液外觀: ${record.dialysateAppearance || '未知'}, 脫水量: ${record.ultrafiltrationVolume || '未知'} ml, 體重：${record.weight || '未知'} kg`,
+      }));
+
+    const vitalsignRecordsFormatted = vitalsignRecords
+      .filter(record => record.recordDate.startsWith(today))
+      .map(record => ({
+        id: record.id,
+        userId: record.userId,
+        type: 'vitalsign',
+        recordDate: stringToDateTime(record.recordDate),
+        details: `血壓: ${record.systolicBP}/${record.diastolicBP}`,
+      }));
+
+    const exitsiteCareRecordsFormatted = exitsiteCareRecords
+      .filter(record => record.recordDate.startsWith(today))
+      .map(record => ({
+        id: record.id,
+        userId: record.userId,
+        type: 'exitsiteCare',
+        recordDate: stringToDateTime(record.recordDate),
+        details: record.note || '無詳細資訊',
+      }));
+
+    return [...dialysisRecordsFormatted, ...vitalsignRecordsFormatted, ...exitsiteCareRecordsFormatted].sort(
+      (a, b) => b.recordDate.localeCompare(a.recordDate)
+    );
+  }, [dialysisRecords, vitalsignRecords, exitsiteCareRecords])
+
+  // 計算選定病人的趨勢資料
   const patientTrends = useMemo(() => {
     if (!selectedPatientDetails) return null;
 
     const patientDialysisRecords = dialysisRecords.filter(
-      record => record.patientId === selectedPatientDetails.id
+      record => record.userId === selectedPatientDetails.id
     );
-    const patientVitalsRecords = vitalsRecords.filter(
-      record => record.patientId === selectedPatientDetails.id
+    const patientVitalsignRecords = vitalsignRecords.filter(
+      record => record.userId === selectedPatientDetails.id
     );
 
     // 計算每日總脫水量
     const dailyDrainage = patientDialysisRecords.reduce((acc, record) => {
-      const date = record.date;
+      const date = record.recordDate;
       if (!acc[date]) {
         acc[date] = 0;
       }
-      acc[date] += (record.outflowVolume - record.inflowVolume);
+      acc[date] += record.ultrafiltrationVolume;
       return acc;
     }, {} as Record<string, number>);
 
@@ -138,27 +107,27 @@ const AdminDashboard: React.FC = () => {
       drainage: Object.entries(dailyDrainage)
         .map(([date, value]) => ({ date, value }))
         .sort((a, b) => a.date.localeCompare(b.date)),
-      bloodPressure: patientVitalsRecords
+      bloodPressure: patientVitalsignRecords
         .map(record => ({
-          date: record.date,
+          date: record.recordDate,
           value: record.systolicBP,
         }))
         .sort((a, b) => a.date.localeCompare(b.date)),
-      weight: patientVitalsRecords
+      weight: patientDialysisRecords
         .map(record => ({
-          date: record.date,
+          date: record.recordDate,
           value: record.weight,
         }))
         .sort((a, b) => a.date.localeCompare(b.date)),
-      bloodSugar: patientVitalsRecords
-        .filter(record => record.bloodSugar !== undefined)
+      bloodGlucose: patientVitalsignRecords
+        .filter(record => record.bloodGlucose !== undefined)
         .map(record => ({
-          date: record.date,
-          value: record.bloodSugar as number,
+          date: record.recordDate,
+          value: record.bloodGlucose as number,
         }))
         .sort((a, b) => a.date.localeCompare(b.date)),
     };
-  }, [selectedPatientDetails, dialysisRecords, vitalsRecords]);
+  }, [selectedPatientDetails, dialysisRecords, vitalsignRecords]);
 
   const handleSectionClick = (section: string) => {
     setSelectedSection(section === selectedSection ? null : section);
@@ -169,10 +138,27 @@ const AdminDashboard: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    // 實際應用中這裡會調用API刪除紀錄
-    console.log('Deleting record:', selectedRecord);
-    setIsDeleteModalOpen(false);
+  const confirmDelete = async () => {
+    try {
+      switch (selectedRecord.type) {
+        case 'dialysis':
+          await deleteDialysisRecord(selectedRecord.id);
+          await fetchDialysisRecords();
+        break;
+        case 'vitalsign':
+          await deleteVitalsignRecord(selectedRecord.id);
+          await fetchVitalsignRecords();
+          break;
+        case 'exitsiteCare':
+          await deleteExitsiteCareRecord(selectedRecord.id);
+          await fetchExitsiteCareRecords();
+          break;
+      }
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      console.error('刪除失敗:', error);
+      alert('刪除失敗，請稍後再試');
+    }
   };
 
   const handleSendMessage = (patient: any) => {
@@ -185,27 +171,35 @@ const AdminDashboard: React.FC = () => {
     setIsDetailModalOpen(true);
   };
 
-  const handleViewPhotos = (photos: string[]) => {
+  /* const handleViewPhotos = (photos: string[]) => {
     setSelectedPhotos(photos);
     setIsPhotoModalOpen(true);
+  }; */
+
+  const sendMessage = async () => {
+    if (!messageContent.trim() || !selectedPatient) return;
+
+    try {
+      await addMessage({
+        receiverId: selectedPatient.id,
+        content: messageContent,
+        isRead: false,
+      });
+      setMessageContent('');
+      setIsMessageModalOpen(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   };
 
-  const sendMessage = () => {
-    if (!messageContent.trim()) return;
-    // 實際應用中這裡會調用API發送訊息
-    console.log('Sending message to patient:', selectedPatient.name, messageContent);
-    setIsMessageModalOpen(false);
-    setMessageContent('');
-  };
-
-  // 根據篩選條件過濾病患
+  // 根據篩選條件過濾病人
   const filteredPatients = patientSummaries.filter((patient) => {
     const matchesFilter =
       filter === 'all' ||
       (filter === 'warning' && (patient.status === 'warning' || patient.status === 'danger')) ||
       (filter === 'danger' && patient.status === 'danger');
 
-    const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = patient.fullName.toLowerCase().includes(searchTerm.toLowerCase());
 
     return matchesFilter && matchesSearch;
   });
@@ -214,23 +208,23 @@ const AdminDashboard: React.FC = () => {
     switch (selectedSection) {
       case 'totalPatients':
         return {
-          title: '所有病患列表',
+          title: '所有病人列表',
           data: patientSummaries,
         };
       case 'alerts':
         return {
-          title: '警示病患列表',
-          data: patientSummaries.filter(p => p.alerts > 0),
+          title: '警示病人列表',
+          data: patientSummaries.filter(p => p.alertRecordsCount > 0),
         };
       case 'todayRecords':
         return {
           title: '今日紀錄列表',
-          data: mockRecords,
+          data: records,
         };
       case 'attention':
         return {
-          title: '需關注病患列表',
-          data: patientSummaries.filter(p => p.status !== 'normal'),
+          title: '需關注病人列表',
+          data: patientSummaries.filter(p => p.status !== 'stable'),
         };
       default:
         return null;
@@ -242,7 +236,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <Layout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">您好，{user?.name}！</h1>
+        <h1 className="text-2xl font-bold text-gray-900">您好，{user?.fullName}！</h1>
         <p className="text-gray-600">歡迎回到個案管理師控制台</p>
       </div>
 
@@ -256,7 +250,7 @@ const AdminDashboard: React.FC = () => {
               <Users size={24} className="text-blue-600" />
             </div>
             <div>
-              <p className="text-gray-500 text-sm">總病患數</p>
+              <p className="text-gray-500 text-sm">總病人數</p>
               <p className="text-2xl font-semibold">{patientSummaries.length}</p>
             </div>
           </div>
@@ -273,7 +267,7 @@ const AdminDashboard: React.FC = () => {
             <div>
               <p className="text-gray-500 text-sm">警示數量</p>
               <p className="text-2xl font-semibold">
-                {patientSummaries.reduce((sum, patient) => sum + patient.alerts, 0)}
+                {patientSummaries.reduce((sum, patient) => sum + patient.alertRecordsCount, 0)}
               </p>
             </div>
           </div>
@@ -289,7 +283,7 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-gray-500 text-sm">今日紀錄筆數</p>
-              <p className="text-2xl font-semibold">{mockRecords.length}</p>
+              <p className="text-2xl font-semibold">{records.length}</p>
             </div>
           </div>
         </div>
@@ -303,9 +297,9 @@ const AdminDashboard: React.FC = () => {
               <Activity size={24} className="text-purple-600" />
             </div>
             <div>
-              <p className="text-gray-500 text-sm">需關注病患</p>
+              <p className="text-gray-500 text-sm">需關注病人</p>
               <p className="text-2xl font-semibold">
-                {patientSummaries.filter(p => p.status !== 'normal').length}
+                {patientSummaries.filter(p => p.status !== 'stable').length}
               </p>
             </div>
           </div>
@@ -324,19 +318,19 @@ const AdminDashboard: React.FC = () => {
                   {selectedSection === 'todayRecords' ? (
                     <>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">病患</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">病人</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">類型</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">詳細資訊</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">照片</th>
+                      {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">照片</th> */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                     </>
                   ) : (
                     <>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">病患資訊</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">病人資訊</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">狀態</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">警示數</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">最近紀錄</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">照片</th>
+                      {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">照片</th> */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                     </>
                   )}
@@ -346,15 +340,16 @@ const AdminDashboard: React.FC = () => {
                 {selectedSection === 'todayRecords' ? (
                   sectionContent.data.map((record: any) => (
                     <tr key={record.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.date}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.recordDate}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {patientSummaries.find(p => p.id === record.patientId)?.name}
+                        {patientSummaries.find(p => p.id === record.userId)?.fullName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.type === 'dialysis' ? '透析紀錄' : '生命徵象'}
+                        {record.type === 'dialysis' ? '透析紀錄' :
+                         record.type === 'vitalsign' ? '生命徵象' : '出口照護'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.details}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.photos && record.photos.length > 0 && (
                           <button
                             onClick={() => handleViewPhotos(record.photos)}
@@ -364,7 +359,7 @@ const AdminDashboard: React.FC = () => {
                             查看照片 ({record.photos.length})
                           </button>
                         )}
-                      </td>
+                      </td> */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => handleDeleteRecord(record)}
@@ -381,7 +376,7 @@ const AdminDashboard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{patient.name}</div>
+                            <div className="text-sm font-medium text-gray-900">{patient.fullName}</div>
                             <div className="text-sm text-gray-500">
                               {patient.age}歲 · {patient.gender}
                             </div>
@@ -399,12 +394,12 @@ const AdminDashboard: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {patient.alerts} 項警示
+                        {patient.alertRecordsCount} 項警示
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {patient.lastRecord}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {patient.lastDialysis?.photos && patient.lastDialysis.photos.length > 0 && (
                           <button
                             onClick={() => handleViewPhotos(patient.lastDialysis.photos)}
@@ -414,7 +409,7 @@ const AdminDashboard: React.FC = () => {
                             查看照片 ({patient.lastDialysis.photos.length})
                           </button>
                         )}
-                      </td>
+                      </td> */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => handleViewDetails(patient)}
@@ -439,7 +434,7 @@ const AdminDashboard: React.FC = () => {
       )}
 
       {/* 照片檢視對話框 */}
-      <Transition show={isPhotoModalOpen} as={React.Fragment}>
+      {/* <Transition show={isPhotoModalOpen} as={React.Fragment}>
         <Dialog
           as="div"
           className="fixed inset-0 z-10 overflow-y-auto"
@@ -475,7 +470,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </Dialog>
-      </Transition>
+      </Transition> */}
 
       {/* 刪除確認對話框 */}
       <Transition show={isDeleteModalOpen} as={React.Fragment}>
@@ -529,7 +524,7 @@ const AdminDashboard: React.FC = () => {
             <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
             <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
               <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                發送訊息給 {selectedPatient?.name}
+                發送訊息給 {selectedPatient?.fullName}
               </Dialog.Title>
               <div className="mt-4">
                 <textarea
@@ -543,7 +538,10 @@ const AdminDashboard: React.FC = () => {
                 <button
                   type="button"
                   className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-transparent rounded-md hover:bg-gray-200 focus:outline-none"
-                  onClick={() => setIsMessageModalOpen(false)}
+                  onClick={() => {
+                    setMessageContent('');
+                    setIsMessageModalOpen(false);
+                  }}
                 >
                   取消
                 </button>
@@ -561,7 +559,7 @@ const AdminDashboard: React.FC = () => {
         </Dialog>
       </Transition>
 
-      {/* 病患詳細資料對話框 */}
+      {/* 病人詳細資料對話框 */}
       <Transition show={isDetailModalOpen} as={React.Fragment}>
         <Dialog
           as="div"
@@ -573,7 +571,7 @@ const AdminDashboard: React.FC = () => {
             <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
             <div className="inline-block w-full max-w-6xl p-6 my-8 overflow-y-auto max-h-[90vh] text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
               <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 mb-4">
-                病患詳細資料 - {selectedPatientDetails?.name}
+                病人詳細資料 - {selectedPatientDetails?.fullName}
               </Dialog.Title>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -581,7 +579,7 @@ const AdminDashboard: React.FC = () => {
                   <h4 className="font-medium text-gray-700 mb-2">基本資料</h4>
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="space-y-2">
-                      <p className="text-sm text-gray-600">姓名：{selectedPatientDetails?.name}</p>
+                      <p className="text-sm text-gray-600">姓名：{selectedPatientDetails?.fullName}</p>
                       <p className="text-sm text-gray-600">年齡：{selectedPatientDetails?.age}歲</p>
                       <p className="text-sm text-gray-600">性別：{selectedPatientDetails?.gender}</p>
                       <p className="text-sm text-gray-600">開始透析：{selectedPatientDetails?.dialysisStartDate}</p>
@@ -595,7 +593,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">血壓：{selectedPatientDetails?.lastBP}</p>
                       <p className="text-sm text-gray-600">體重：{selectedPatientDetails?.lastWeight} kg</p>
-                      <p className="text-sm text-gray-600">血糖：{selectedPatientDetails?.lastBloodSugar} mg/dL</p>
+                      <p className="text-sm text-gray-600">血糖：{selectedPatientDetails?.lastBloodGlucose} mg/dL</p>
                     </div>
                   </div>
                 </div>
@@ -628,16 +626,14 @@ const AdminDashboard: React.FC = () => {
                       color="rgb(59, 130, 246)"
                     />
                     
-                    {patientTrends.bloodSugar.length > 0 && (
-                      <LineChart
-                        title="血糖趨勢"
-                        data={patientTrends.bloodSugar}
-                        unit="mg/dL"
-                        highThreshold={180}
-                        lowThreshold={70}
-                        color="rgb(139, 92, 246)"
-                      />
-                    )}
+                    <LineChart
+                      title="血糖趨勢"
+                      data={patientTrends.bloodGlucose}
+                      unit="mg/dL"
+                      highThreshold={180}
+                      lowThreshold={70}
+                      color="rgb(139, 92, 246)"
+                    />
                   </div>
                 </div>
               )}

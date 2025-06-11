@@ -98,7 +98,7 @@ const LineChart: React.FC<LineChartProps> = ({
         max: highThreshold ? Math.max(highThreshold * 1.1, Math.max(...values)) : undefined,
         ticks: {
           callback: function(value) {
-            return `${value} ${unit}`;
+            return `${Math.round(value as number)} ${unit}`;
           },
           font: {
             size: 12,

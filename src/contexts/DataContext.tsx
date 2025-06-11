@@ -1,290 +1,658 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { DialysisRecord, VitalsRecord, Alert, Message, Patient, ExitSiteCareRecord } from '../types';
+import React, { createContext, useContext, useState } from 'react';
+import { DialysisRecord, DialysisRecordInput, VitalsignRecord, VitalsignRecordInput, 
+  AlertRecord, AlertRecordInput, Message, MessageInput, User, patientSummary,
+  ExitsiteCareRecord, ExitsiteCareRecordInput, DialysisSetting, DialysisSettingInput, 
+  UserInput} from '../types/index';
 import { useAuth } from './AuthContext';
 
 interface DataContextType {
+  patients: User[];
+  patientSummaries: patientSummary[];
+  addUser: (data: UserInput) => Promise<void>;
+  fetchPatientSummaries: () => Promise<void>;
+  fetchPatients: () => Promise<void>;
   dialysisRecords: DialysisRecord[];
-  vitalsRecords: VitalsRecord[];
-  alerts: Alert[];
+  addDialysisRecord: (data: DialysisRecordInput) => Promise<void>;
+  fetchDialysisRecords: (userId?: string) => Promise<void>;
+  deleteDialysisRecord: (id: string) => Promise<void>;
+  vitalsignRecords: VitalsignRecord[];
+  addVitalsignRecord: (data: VitalsignRecordInput) => Promise<void>;
+  fetchVitalsignRecords: (userId?: string) => Promise<void>;
+  deleteVitalsignRecord: (id: string) => Promise<void>;
+  exitsiteCareRecords: ExitsiteCareRecord[];
+  addExitsiteCareRecord: (data: ExitsiteCareRecordInput) => Promise<void>;
+  fetchExitsiteCareRecords: (userId?: string) => Promise<void>;
+  deleteExitsiteCareRecord: (id: string) => Promise<void>;
   messages: Message[];
-  patients: Patient[];
-  exitSiteCareRecords: ExitSiteCareRecord[];
-  addDialysisRecord: (record: Omit<DialysisRecord, 'id' | 'patientId' | 'createdAt'>) => Promise<void>;
-  addVitalsRecord: (record: Omit<VitalsRecord, 'id' | 'patientId' | 'createdAt'>) => Promise<void>;
-  addExitSiteCareRecord: (record: Omit<ExitSiteCareRecord, 'id' | 'patientId' | 'createdAt'>) => Promise<void>;
-  addMessage: (message: Omit<Message, 'id' | 'createdAt'>) => Promise<void>;
+  addMessage: (data: MessageInput) => Promise<void>;
+  fetchMessages: (userId?: string) => Promise<void>;
+  alertRecords: AlertRecord[];
+  addAlertRecord: (record: AlertRecordInput) => Promise<void>;
+  fetchAlertRecords: (userId?: string) => Promise<void>;
+  dialysisSettings: DialysisSetting[];
+  udpateDialysisSetting: (id: string, record: DialysisSettingInput) => Promise<void>;
+  fetchDialysisSettings: (userId?: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
-
-const MOCK_PATIENTS: Patient[] = [
-  {
-    id: '1',
-    role: 'patient',
-    name: '王小明',
-    nationalId: 'A123456789',
-    phone: '0912345678',
-    medicalId: 'M123456',
-    birthdate: '1958-08-15',
-    age: 65,
-    gender: 'male',
-    dialysisStartDate: '2022-03-15',
-    caseManagerId: '2',
-    createdAt: '2022-03-15T00:00:00Z',
-  },
-  {
-    id: '2',
-    role: 'patient',
-    name: '李小華',
-    nationalId: 'B234567890',
-    phone: '0923456789',
-    medicalId: 'M234567',
-    birthdate: '1965-04-22',
-    age: 58,
-    gender: 'female',
-    dialysisStartDate: '2021-11-22',
-    caseManagerId: '2',
-    createdAt: '2021-11-22T00:00:00Z',
-  },
-];
-
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: '1',
-    senderId: '2',
-    receiverId: '1',
-    content: '王小明您好，提醒您今天要記得量血壓喔！',
-    isRead: true,
-    createdAt: '2024-03-19T10:00:00Z',
-  },
-  {
-    id: '2',
-    senderId: '1',
-    receiverId: '2',
-    content: '好的，謝謝提醒！',
-    isRead: true,
-    createdAt: '2024-03-19T10:05:00Z',
-  },
-  {
-    id: '3',
-    senderId: '2',
-    receiverId: '1',
-    content: '您最近的血壓有點偏高，請特別注意飲食控制。',
-    isRead: false,
-    createdAt: '2024-03-20T09:00:00Z',
-  },
-];
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const [patients, setPatients] = useState<User[]>([]);
+  const [patientSummaries, setPatientSummaries] = useState<patientSummary[]>([]);
   const [dialysisRecords, setDialysisRecords] = useState<DialysisRecord[]>([]);
-  const [vitalsRecords, setVitalsRecords] = useState<VitalsRecord[]>([]);
-  const [exitSiteCareRecords, setExitSiteCareRecords] = useState<ExitSiteCareRecord[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
-  const [patients, setPatients] = useState<Patient[]>(MOCK_PATIENTS);
+  const [vitalsignRecords, setVitalsignRecords] = useState<VitalsignRecord[]>([]);
+  const [exitsiteCareRecords, setExitsiteCareRecords] = useState<ExitsiteCareRecord[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [alertRecords, setAlertRecords] = useState<AlertRecord[]>([]);
+  const [dialysisSettings, setDialysisSettings] = useState<DialysisSetting[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      
-      setTimeout(() => {
-        try {
-          const { dialysisRecords, vitalsRecords, alerts } = generateMockData(user.id);
-          
-          setDialysisRecords(dialysisRecords);
-          setVitalsRecords(vitalsRecords);
-          setAlerts(alerts);
-          setError(null);
-        } catch (err: any) {
-          setError(err.message);
-        } finally {
-          setIsLoading(false);
-        }
-      }, 1000);
-    }
-  }, [user]);
-
-  const addDialysisRecord = async (
-    record: Omit<DialysisRecord, 'id' | 'patientId' | 'createdAt'>
-  ) => {
-    if (!user) return;
-    
+  const fetchPatients = async () => {
     setIsLoading(true);
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newRecord: DialysisRecord = {
-        id: `dialysis_${Date.now()}`,
-        patientId: user.id,
-        ...record,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setDialysisRecords(prev => [newRecord, ...prev]);
-      
-      if (record.appearance !== 'clear') {
-        const newAlert: Alert = {
-          id: `alert_${Date.now()}`,
-          patientId: user.id,
-          type: 'dialysis',
-          message: `透析液外觀${
-            record.appearance === 'cloudy' ? '混濁' : 
-            record.appearance === 'bloody' ? '血性' : '異常'
-          }，請留意可能的感染風險`,
-          date: record.date,
-          isResolved: false,
-          createdAt: new Date().toISOString(),
-        };
-        
-        setAlerts(prev => [newAlert, ...prev]);
+    try { 
+      const response = await fetch('/api/patients');
+      const responseData = await response.json();
+
+      if (responseData.success) {
+        const formatedData = responseData.data.map((data: any) => ({
+          id: data.id,
+          lineUserId: data.line_user_id,
+          lineDisplayName: data.line_display_name,
+          fullName: data.full_name,
+          caseNumber: data.case_number,
+          gender: data.gender,
+          birthdate: data.birthdate,
+          role: data.role,
+          dialysisStartDate: data.dialysis_start_date,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        }));
+        setPatients(formatedData);
+      } else {
+        throw new Error(responseData.error || '(病人清單)取得失敗');
       }
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchPatientSummaries = async () => {
+    setIsLoading(true);
+    try { 
+      const response = await fetch('/api/patients/summaries');
+      const responseData = await response.json();
+
+      if (responseData.success) {
+        const formatedData = responseData.data.map((data: any) => ({
+          id: data.id,
+          fullName: data.full_name,
+          caseNumber: data.case_number,
+          gender: data.gender,
+          age: data.age,
+          dialysisStartDate: data.dialysis_start_date,
+          lastRecord: data.last_record,
+          alertRecordsCount: data.alert_records_count,
+          status: data.status,
+          lastBP: data.last_bp,
+          lastWeight: data.last_weight,
+          lastBloodGlucose: data.last_blood_glucose,
+        }));
+        setPatientSummaries(formatedData);
+      } else {
+        throw new Error(responseData.error || '(病人匯總資訊)取得失敗');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addUser = async (data: UserInput) => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: data.fullName,
+          caseNumber: data.caseNumber,
+          gender: data.gender,
+          birthdate: data.birthdate,
+          role: data.role,
+          dialysisStartDate: data.dialysisStartDate,
+        }),
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error);
+      }
+    } catch (err: any) {
+      setError('(使用者)新增失敗，' + err.message);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const addVitalsRecord = async (
-    record: Omit<VitalsRecord, 'id' | 'patientId' | 'createdAt'>
-  ) => {
+  const addDialysisRecord = async (data: DialysisRecordInput) => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/dialysis-record', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          recordDate: data.recordDate,
+          infusedVolume: data.infusedVolume,
+          drainedVolume: data.drainedVolume,
+          dialysateGlucose: data.dialysateGlucose,
+          weight: data.weight,
+          dialysateAppearance: data.dialysateAppearance,
+          abdominalPain: data.abdominalPain,
+          abdominalPainScore: data.abdominalPainScore ?? 0,
+          otherSymptoms: data.otherSymptoms.join(','),
+          note: data.note ?? '',
+        }),
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error);
+      }
+
+      if (data.dialysateAppearance !== 'clear') {
+        await addAlertRecord({
+          recordId: responseData.data[0].id,
+          type: 'dialysis',
+          content:  `透析液外觀${
+            data.dialysateAppearance === 'cloudy' ? '混濁' : 
+            data.dialysateAppearance === 'bloody' ? '血性' : '異常'
+          }，請留意可能的感染風險`
+        })
+      }
+    } catch (err: any) {
+      setError('(透析紀錄)新增失敗，' + err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchDialysisRecords = async (userId?: string) => {
+    setIsLoading(true);
+    try {
+      const endpoint = userId ? `/api/dialysis-record?userId=${userId}` : '/api/dialysis-record'
+      const response = await fetch(endpoint);
+      const responseData = await response.json();
+
+      if (responseData.success) {
+        const formatedData = responseData.data.map((data: any) => ({
+          id: data.id,
+          userId: data.user_id,
+          recordDate: data.record_date,
+          infusedVolume: data.infused_volume,
+          drainedVolume: data.drained_volume,
+          ultrafiltrationVolume: data.ultrafiltration_volume,
+          dialysateGlucose: data.dialysate_glucose,
+          weight: data.weight,
+          dialysateAppearance: data.dialysate_appearance,
+          abdominalPain: data.abdominal_pain,
+          abdominalPainScore: data.abdominal_pain_score,
+          otherSymptoms: data.other_symptoms ? data.other_symptoms.split(',') : [],
+          note: data.note,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        }));
+        setDialysisRecords(formatedData);
+      } else {
+        throw new Error(responseData.error || '(透析記錄)取得失敗');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteDialysisRecord = async (id: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/dialysis-record/${id}`, {
+        method: 'DELETE',
+      });
+
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error);
+      }
+    } catch (err: any) {
+      setError('(透析紀錄)刪除失敗，' + err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const addVitalsignRecord = async (data: VitalsignRecordInput) => {
     if (!user) return;
     
     setIsLoading(true);
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newRecord: VitalsRecord = {
-        id: `vitals_${Date.now()}`,
-        patientId: user.id,
-        ...record,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setVitalsRecords(prev => [newRecord, ...prev]);
-      
-      const alerts = [];
-      
-      if (record.systolicBP > 140 || record.systolicBP < 90 || 
-          record.diastolicBP > 90 || record.diastolicBP < 60) {
-        alerts.push({
-          id: `alert_bp_${Date.now()}`,
-          patientId: user.id,
+      const response = await fetch('/api/vitalsign-record', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          recordDate: data.recordDate,
+          systolicBP: data.systolicBP,
+          diastolicBP: data.diastolicBP,
+          temperature: data.temperature,
+          needBloodGlucose: data.needBloodGlucose,
+          bloodGlucose: data.bloodGlucose,
+          note: data.note ?? '',
+        }),
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error);
+      }
+
+      if (data.systolicBP > 140 || data.systolicBP < 90 ||
+        data.diastolicBP > 90 || data.diastolicBP < 60) {
+        await addAlertRecord({
+          recordId: responseData.data[0].id,
           type: 'bp',
-          message: `血壓異常 (${record.systolicBP}/${record.diastolicBP} mmHg)，請持續監測`,
-          date: record.date,
-          isResolved: false,
-          createdAt: new Date().toISOString(),
-        });
+          content: `血壓異常 (${data.systolicBP}/${data.diastolicBP} mmHg)，請持續監測`
+        })
       }
-      
-      if (record.bloodSugar && (record.bloodSugar > 180 || record.bloodSugar < 70)) {
-        alerts.push({
-          id: `alert_bs_${Date.now()}`,
-          patientId: user.id,
-          type: 'bloodSugar',
-          message: `血糖${record.bloodSugar > 180 ? '過高' : '過低'} (${record.bloodSugar} mg/dL)，請留意飲食與症狀`,
-          date: record.date,
-          isResolved: false,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      
-      if (alerts.length > 0) {
-        setAlerts(prev => [...alerts, ...prev]);
+
+      if (data.bloodGlucose && (data.bloodGlucose > 180 || data.bloodGlucose < 70)) {
+        await addAlertRecord({
+          recordId: responseData.data[0].id,
+          type: 'bloodGlucose',
+          content: `血糖${data.bloodGlucose > 180 ? '過高' : '過低'} (${data.bloodGlucose} mg/dL)，請留意飲食與症狀`
+        })
       }
     } catch (err: any) {
-      setError(err.message);
+      setError('(生命徵象)新增失敗，' + err.message);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const addExitSiteCareRecord = async (
-    record: Omit<ExitSiteCareRecord, 'id' | 'patientId' | 'createdAt'>
-  ) => {
+  const fetchVitalsignRecords = async (userId?: string) => {
+    setIsLoading(true);
+    try {
+      const endpoint = userId ? `/api/vitalsign-record?userId=${userId}` : '/api/vitalsign-record'
+      const resonse = await fetch(endpoint);
+      const resonseData = await resonse.json();
+
+      if (resonseData.success) {
+        const formatedData = resonseData.data.map((data: any) => ({
+          id: data.id,
+          userId: data.user_id,
+          recordDate: data.record_date,
+          systolicBP: data.systolic_bp,
+          diastolicBP: data.diastolic_bp,
+          temperature: data.temperature,
+          needBloodGlucose: data.need_blood_glucose,
+          bloodGlucose: data.blood_glucose,
+          note: data.note,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        }));
+        setVitalsignRecords(formatedData);
+      } else {
+        throw new Error(resonseData.error || '(生命徵象)取得失敗');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteVitalsignRecord = async (id: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/vitalsign-record/${id}`, {
+        method: 'DELETE',
+      });
+
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error);
+      }
+    } catch (err: any) {
+      setError('(生命徵象)刪除失敗，' + err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const addExitsiteCareRecord = async (data: ExitsiteCareRecordInput) => {
     if (!user) return;
     
     setIsLoading(true);
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newRecord: ExitSiteCareRecord = {
-        id: `exitcare_${Date.now()}`,
-        patientId: user.id,
-        ...record,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setExitSiteCareRecords(prev => [newRecord, ...prev]);
+      const response = await fetch('/api/exitsite-care-record', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          recordDate: data.recordDate,
+          exitsiteAppearance: data.exitsiteAppearance,
+          discharge: data.discharge,
+          dischargeColor: data.dischargeColor,
+          dischargeAmount: data.dischargeAmount,
+          pain: data.pain,
+          painScore: data.painScore,
+          scab: data.scab,
+          tunnelInfection: data.tunnelInfection,
+          note: data.note ?? '',
+        }),
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error);
+      }
 
-      if (record.appearance !== 'normal') {
-        const newAlert: Alert = {
-          id: `alert_exitcare_${Date.now()}`,
-          patientId: user.id,
+      if (data.exitsiteAppearance != 'normal') {
+        await addAlertRecord({
+          recordId: responseData.data[0].id,
           type: 'dialysis',
-          message: `導管出口${
-            record.appearance === 'red' ? '發紅' :
-            record.appearance === 'swollen' ? '腫脹' :
+          content: `導管出口${
+            data.exitsiteAppearance === 'red' ? '發紅' :
+            data.exitsiteAppearance === 'swollen' ? '腫脹' :
             '有分泌物'
-          }，請留意感染風險`,
-          date: record.date,
-          isResolved: false,
-          createdAt: new Date().toISOString(),
-        };
-        
-        setAlerts(prev => [newAlert, ...prev]);
+          }，請留意感染風險`
+        })
       }
     } catch (err: any) {
-      setError(err.message);
+      setError('(出口照護)新增失敗' + err.message);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const addMessage = async (message: Omit<Message, 'id' | 'createdAt'>) => {
+  const fetchExitsiteCareRecords = async (userId?: string) => {
     setIsLoading(true);
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newMessage: Message = {
-        id: `message_${Date.now()}`,
-        ...message,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setMessages(prev => [newMessage, ...prev]);
+      const endpoint = userId ? `/api/exitsite-care-record?userId=${userId}` : '/api/exitsite-care-record'
+      const response = await fetch(endpoint);
+      const responseData = await response.json();
+
+      if (responseData.success) {
+        const formatedData = responseData.data.map((data: any) => ({
+          id: data.id,
+          userId: data.user_id,
+          recordDate: data.record_date,
+          exitsiteAppearance: data.exitsite_appearance,
+          discharge: data.discharge,
+          dischargeColor: data.discharge_color,
+          dischargeAmount: data.discharge_amount,
+          pain: data.pain,
+          painScore: data.pain_score,
+          scab: data.scab,
+          tunnelInfection: data.tunnel_infection,
+          note: data.note,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        }));
+        setExitsiteCareRecords(formatedData);
+      } else {
+        throw new Error(responseData.error || '(出口照護)取得失敗');
+      }
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteExitsiteCareRecord = async (id: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/exitsite-care-record/${id}`, {
+        method: 'DELETE',
+      });
+
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error);
+      }
+    } catch (err: any) {
+      setError('(出口照護)刪除失敗，' + err.message);
       throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const addMessage = async (data: MessageInput) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      await fetch('/api/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          senderId: user.id,
+          receiverId: data.receiverId,
+          content: data.content,
+          isRead: data.isRead,
+        }),
+      });
+    } catch (err: any) {
+      setError('(訊息通知)新增失敗' + err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchMessages = async (userId?: string) => {
+    setIsLoading(true);
+    try {
+      const endpoint = userId ? `/api/message?userId=${userId}` : '/api/message'
+      const response = await fetch(endpoint);
+      const responseData = await response.json();
+
+      if (responseData.success) {
+        const formatedData = responseData.data.map((data: any) => ({
+          id: data.id,
+          sernderId: data.sender_id,
+          receiverId: data.receiver_id,
+          content: data.content,
+          isRead: data.is_read,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        }));
+        setMessages(formatedData);
+      } else {
+        throw new Error(responseData.error || '(訊息通知)取得失敗');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addAlertRecord = async (data: AlertRecordInput) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      await fetch('/api/alert-record', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          recordId: data.recordId,
+          type: data.type,
+          content: data.content,
+        }),
+      });
+    } catch (err: any) {
+      setError('(異常警示)新增失敗' + err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchAlertRecords = async (userId?: string, isResolved?: boolean) => {
+    setIsLoading(true);
+    try {
+      let endpoint = '/api/alert-record'
+      if (userId || !isResolved) {
+        endpoint += '?'
+        if (userId) {
+          endpoint += `userId=${userId}`
+        }
+        if (!isResolved) {
+          if (userId) {
+            endpoint += '&'
+          }
+          endpoint += 'isResolved=false'
+        }
+      }
+      const response = await fetch(endpoint);
+      const responseData = await response.json();
+
+      if (responseData.success) {
+        const formatedData = responseData.data.map((data: any) => ({
+          id: data.id,
+          userId: data.user_id,
+          userName: data.full_name,
+          recordId: data.recordId,
+          type: data.type,
+          content: data.content,
+          isResolved: data.is_resolved,
+          resolvedId: data.resolved_id,
+          resolvedAt: data.resolved_at,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        }));
+        setAlertRecords(formatedData);
+      } else {
+        throw new Error(responseData.error || '(異常警示)取得失敗');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const udpateDialysisSetting = async (id: string, data: DialysisSettingInput) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      await fetch(`/api/dialysis-setting/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          exchangeVolumnePertime: data.exchangeVolumnePertime,
+          exchangeTimesPerday: data.exchangeTimesPerday,
+          dialysateGlucose: data.dialysateGlucose,
+          note: data.note,
+        }),
+      });
+    } catch (err: any) {
+      setError('(透析處方)更新失敗' + err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchDialysisSettings = async (userId?: string) => {
+    setIsLoading(true);
+    try {
+      const endpoint = userId ? `/api/dialysis-setting?userId=${userId}` : '/api/dialysis-setting'
+      const response = await fetch(endpoint);
+      const responseData = await response.json();
+
+      if (responseData.success) {
+        const formatedData = responseData.data.map((data: any) => ({
+          id: data.id,
+          userId: data.user_id,
+          exchangeVolumnePertime: data.exchange_volumne_pertime,
+          exchangeTimesPerday: data.exchange_times_perday,
+          dialysateGlucose: data.dialysate_glucose,
+          note: data.note,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        }));
+        setDialysisSettings(formatedData);
+      } else {
+        throw new Error(responseData.error || '(透析處方)取得失敗');
+      }
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
   const value = {
-    dialysisRecords,
-    vitalsRecords,
-    exitSiteCareRecords,
-    alerts,
-    messages,
     patients,
+    patientSummaries,
+    addUser,
+    fetchPatientSummaries,
+    fetchPatients,
+    dialysisRecords,
     addDialysisRecord,
-    addVitalsRecord,
-    addExitSiteCareRecord,
+    fetchDialysisRecords,
+    deleteDialysisRecord,
+    vitalsignRecords,
+    addVitalsignRecord,
+    fetchVitalsignRecords,
+    deleteVitalsignRecord,
+    exitsiteCareRecords,
+    addExitsiteCareRecord,
+    fetchExitsiteCareRecords,
+    deleteExitsiteCareRecord,
+    messages,
     addMessage,
+    fetchMessages,
+    alertRecords,
+    addAlertRecord,
+    fetchAlertRecords,
+    dialysisSettings,
+    udpateDialysisSetting,
+    fetchDialysisSettings,
     isLoading,
     error,
   };
@@ -298,90 +666,4 @@ export const useData = () => {
     throw new Error('useData 必須在 DataProvider 內使用');
   }
   return context;
-};
-
-const generateMockData = (patientId: string) => {
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const twoDaysAgo = new Date(today);
-  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-  
-  const dialysisRecords: DialysisRecord[] = [
-    {
-      id: '1',
-      patientId,
-      date: yesterday.toISOString().split('T')[0],
-      time: '08:00',
-      inflowVolume: 2000,
-      outflowVolume: 2200,
-      appearance: 'clear',
-      hasAbdominalPain: false,
-      symptoms: [],
-      createdAt: yesterday.toISOString(),
-    },
-    {
-      id: '2',
-      patientId,
-      date: twoDaysAgo.toISOString().split('T')[0],
-      time: '14:00',
-      inflowVolume: 2000,
-      outflowVolume: 1900,
-      appearance: 'cloudy',
-      hasAbdominalPain: true,
-      painLevel: 3,
-      symptoms: ['nausea'],
-      notes: '今日透析液略混濁，有輕微腹痛',
-      createdAt: twoDaysAgo.toISOString(),
-    },
-  ];
-  
-  const vitalsRecords: VitalsRecord[] = [
-    {
-      id: '1',
-      patientId,
-      date: yesterday.toISOString().split('T')[0],
-      systolicBP: 135,
-      diastolicBP: 85,
-      weight: 65.5,
-      bloodSugar: 110,
-      createdAt: yesterday.toISOString(),
-    },
-    {
-      id: '2',
-      patientId,
-      date: twoDaysAgo.toISOString().split('T')[0],
-      systolicBP: 142,
-      diastolicBP: 88,
-      weight: 66.2,
-      bloodSugar: 125,
-      notes: '今日略感疲倦，食慾稍差',
-      createdAt: twoDaysAgo.toISOString(),
-    },
-  ];
-  
-  const alerts: Alert[] = [
-    {
-      id: '1',
-      patientId,
-      type: 'bp',
-      message: '收縮壓超過 140 mmHg，請留意血壓變化',
-      date: twoDaysAgo.toISOString().split('T')[0],
-      isResolved: true,
-      resolvedBy: '2',
-      resolvedAt: yesterday.toISOString(),
-      createdAt: twoDaysAgo.toISOString(),
-    },
-    {
-      id: '2',
-      patientId,
-      type: 'dialysis',
-      message: '透析液外觀混濁，可能有感染風險，請諮詢醫療人員',
-      date: twoDaysAgo.toISOString().split('T')[0],
-      isResolved: false,
-      createdAt: twoDaysAgo.toISOString(),
-    },
-  ];
-  
-  return { dialysisRecords, vitalsRecords, alerts };
 };

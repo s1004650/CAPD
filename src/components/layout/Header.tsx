@@ -43,9 +43,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             <div className="ml-4 relative flex-shrink-0 flex items-center">
               <div className="flex items-center">
                 <div className="text-right mr-3 hidden sm:block">
-                  <div className="text-sm font-medium text-gray-700">{user?.name}</div>
+                  <div className="text-sm font-medium text-gray-700">{user?.fullName}</div>
                   <div className="text-xs text-gray-500">
-                    {user?.role === UserRole.PATIENT ? '病患' : '個案管理師'}
+                    {user?.role === UserRole.PATIENT ? '病人' : '個案管理師'}
                   </div>
                 </div>
                 <div className="relative">
